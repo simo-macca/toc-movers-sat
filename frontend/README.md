@@ -67,7 +67,7 @@ This will generate a `dist/` directory containing static files ready to be serve
 
 ## 🛠️ Tech Stack
 
-* **Framework:** Vue 3 (Composition API, `<script setup>`)
-* **Styling:** Tailwind CSS
-* **Build Tool:** Vite
-* **Icons/Visuals:** Custom SVG & Native DOM Elements (No heavy 3D/Canvas libraries required)
+- **Framework:** Vue 3 (Composition API, `<script setup>`)
+- **Styling:** Tailwind CSS
+- **Build Tool:** Vite
+- **Icons/Visuals:** Custom SVG & Native DOM Elements (No heavy 3D/Canvas libraries required)
