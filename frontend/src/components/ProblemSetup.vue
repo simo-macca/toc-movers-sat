@@ -41,7 +41,12 @@ watch(
 )
 
 const addItem = () => {
-  localForm.value.items.push({ name: '', initial_floor: localForm.value.num_floors - 1 })
+  const nextItemNumber = localForm.value.items.length + 1
+
+  localForm.value.items.push({
+    name: `Item ${nextItemNumber}`,
+    initial_floor: localForm.value.num_floors - 1,
+  })
 }
 
 const removeItem = (index) => {
@@ -99,7 +104,10 @@ const removeItem = (index) => {
         </div>
       </div>
 
-      <div v-if="localForm.task === 2" class="rounded-xl border border-slate-200 bg-slate-100 p-4">
+      <div
+        v-if="localForm.task === 2"
+        class="max-h-80 overflow-scroll rounded-xl border border-slate-200 bg-slate-100 p-4"
+      >
         <div class="mb-3 flex items-center justify-between">
           <label class="block text-sm font-bold text-slate-700">Items to Move</label>
           <button
@@ -118,8 +126,8 @@ const removeItem = (index) => {
           <input
             type="text"
             v-model="item.name"
-            placeholder="Name"
-            class="flex-1 rounded-md border border-slate-300 p-2 text-sm"
+            :placeholder="`Item ${index}`"
+            class="w-30 rounded-md border border-slate-300 p-2 text-sm"
             required
           />
           <input
@@ -128,7 +136,7 @@ const removeItem = (index) => {
             min="0"
             :max="localForm.num_floors - 1"
             placeholder="Floor"
-            class="w-20 rounded-md border border-slate-300 p-2 text-sm"
+            class="w-15 rounded-md border border-slate-300 p-2 text-sm"
             required
           />
           <button

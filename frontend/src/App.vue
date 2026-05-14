@@ -65,7 +65,7 @@ const submitSolve = async () => {
 
 <template>
   <div class="min-h-screen bg-slate-50 p-4 font-sans text-slate-800 md:p-8">
-    <div class="mx-auto max-w-7xl">
+    <div class="mx-auto">
       <header class="mb-8 flex items-end justify-between border-b border-slate-200 pb-4">
         <div>
           <h1 class="text-4xl font-extrabold tracking-tight text-slate-800">Movers SAT Solver</h1>
@@ -74,11 +74,11 @@ const submitSolve = async () => {
       </header>
 
       <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        <div class="lg:col-span-4">
+        <div class="lg:col-span-3">
           <ProblemSetup v-model:form="form" :isLoading="isLoading" @submit="submitSolve" />
         </div>
 
-        <div class="lg:col-span-8">
+        <div class="lg:col-span-9">
           <ResultsPanel
             :solveResponse="solveResponse"
             :isLoading="isLoading"

@@ -1,4 +1,7 @@
 <script setup>
+import MoverFigure from './MoverFigure.vue'
+import ItemFigure from './ItemFigure.vue'
+
 const props = defineProps({
   floorsReversed: { type: Array, required: true },
   currentState: { type: Object, default: null },
@@ -24,7 +27,7 @@ const getItemsOnFloor = (floorNum) => {
 
 <template>
   <div
-    class="relative max-h-125 overflow-x-hidden overflow-y-auto rounded-lg border-4 border-slate-800 bg-blue-50 shadow-inner"
+    class="relative max-h-170 overflow-x-hidden overflow-y-auto rounded-lg border-4 border-slate-800 bg-blue-50 shadow-inner"
   >
     <div
       v-for="floorNum in floorsReversed"
@@ -37,53 +40,17 @@ const getItemsOnFloor = (floorNum) => {
       >
         {{ floorNum }}
       </div>
-      <div class="flex w-full items-end gap-3 transition-all duration-300">
+
+      <div class="flex w-full items-end gap-4 transition-all duration-300">
+        <MoverFigure v-for="person in getMoversOnFloor(floorNum)" :key="person" :name="person" />
+
         <div
-          v-for="person in getMoversOnFloor(floorNum)"
-          :key="person"
-          class="animate-bounce-short flex flex-col items-center"
-        >
-          <div
-            class="flex h-12 w-8 items-center justify-center rounded-full border-2 border-slate-800 bg-blue-600 shadow-md"
-          >
-            <div class="mb-4 h-3 w-3 rounded-full bg-white"></div>
-          </div>
-          <span class="mt-1 text-[10px] font-bold text-slate-600 uppercase">{{
-            person.replace('person_', 'P')
-          }}</span>
-        </div>
-        <div class="w-8"></div>
-        <div
-          v-for="item in getItemsOnFloor(floorNum)"
-          :key="item"
-          class="flex flex-col items-center"
-        >
-          <div
-            class="flex h-10 w-10 items-center justify-center rounded border-2 border-amber-800 bg-amber-500 shadow-md"
-          >
-            <span class="text-xl">📦</span>
-          </div>
-          <span
-            class="mt-1 w-12 truncate text-center text-[10px] font-bold text-amber-800 uppercase"
-            >{{ item }}</span
-          >
-        </div>
+          v-if="getMoversOnFloor(floorNum).length > 0 && getItemsOnFloor(floorNum).length > 0"
+          class="w-4"
+        ></div>
+
+        <ItemFigure v-for="item in getItemsOnFloor(floorNum)" :key="item" :name="item" />
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes bounce-short {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-3px);
-  }
-}
-.animate-bounce-short {
-  animation: bounce-short 1.5s ease-in-out infinite;
-}
-</style>
