@@ -1,43 +1,92 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { ref } from 'vue'
+import { solveProblem, solveProblemFixed } from './api/client'
+import ProblemSetup from './components/ProblemSetup.vue'
+import ResultsPanel from './components/ResultsPanel.vue'
+
+// global state
+const isLoading = ref(false)
+const error = ref(null)
+const solveResponse = ref(null)
+
+// initial form state
+const form = ref({
+  task: 2,
+  num_floors: 4,
+  num_persons: 2,
+  person_names: ['Alice', 'Bob'],
+  items: [
+    { name: 'Sofa', initial_floor: 3 },
+    { name: 'Desk', initial_floor: 2 },
+  ],
+  goal_floors: [0, 0],
+  solve_mode: 'optimal',
+  max_steps: 20,
+  time_steps: 5,
+})
+
+const submitSolve = async () => {
+  isLoading.value = true
+  error.value = null
+  solveResponse.value = null
+
+  try {
+    const goalFloorsDict = {}
+
+    form.value.goal_floors.forEach((targetFloor, personIndex) => {
+      goalFloorsDict[personIndex] = targetFloor
+    })
+
+    const payload = {
+      task: form.value.task,
+      num_floors: form.value.num_floors,
+      num_persons: form.value.num_persons,
+      person_names: form.value.person_names,
+      // task 2 uses items, task 1 ignores them
+      items: form.value.task === 2 ? form.value.items : [],
+      // task 1 uses goal floors, task 2 ignores them
+      goal_floors: form.value.task === 1 ? goalFloorsDict : null,
+    }
+
+    if (form.value.solve_mode === 'optimal') {
+      payload.max_steps = form.value.max_steps
+      solveResponse.value = await solveProblem(payload)
+    } else {
+      payload.time_steps = form.value.time_steps
+      solveResponse.value = await solveProblemFixed(payload)
+    }
+  } catch (err) {
+    error.value = err.message || 'Failed to connect to backend.'
+  } finally {
+    isLoading.value = false
+  }
+}
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 font-sans text-slate-800 selection:bg-emerald-200">
-    <header
-      class="mx-auto flex max-w-7xl flex-col items-center gap-8 border-b border-slate-200 px-4 py-12 md:flex-row"
-    >
-      <img
-        alt="Vue logo"
-        class="h-32 w-32 drop-shadow-xl transition-transform hover:scale-105"
-        src="@/assets/logo.svg"
-      />
+  <div class="min-h-screen bg-slate-50 p-4 font-sans text-slate-800 md:p-8">
+    <div class="mx-auto max-w-7xl">
+      <header class="mb-8 flex items-end justify-between border-b border-slate-200 pb-4">
+        <div>
+          <h1 class="text-4xl font-extrabold tracking-tight text-slate-800">Movers SAT Solver</h1>
+          <p class="mt-2 text-lg text-slate-500">Optimal logistics planning using Glucose3</p>
+        </div>
+      </header>
 
-      <div class="flex flex-col items-center gap-6 md:items-start">
-        <HelloWorld msg="You did it!" />
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <div class="lg:col-span-4">
+          <ProblemSetup v-model:form="form" :isLoading="isLoading" @submit="submitSolve" />
+        </div>
 
-        <nav class="flex gap-2 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm">
-          <RouterLink
-            to="/"
-            class="rounded-md px-5 py-2 font-semibold text-slate-500 transition-all hover:bg-slate-100 hover:text-emerald-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none active:bg-slate-200"
-            exact-active-class="bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100"
-          >
-            Home
-          </RouterLink>
-          <RouterLink
-            to="/about"
-            class="rounded-md px-5 py-2 font-semibold text-slate-500 transition-all hover:bg-slate-100 hover:text-emerald-600 focus:ring-2 focus:ring-emerald-500 focus:outline-none active:bg-slate-200"
-            exact-active-class="bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100"
-          >
-            About
-          </RouterLink>
-        </nav>
+        <div class="lg:col-span-8">
+          <ResultsPanel
+            :solveResponse="solveResponse"
+            :isLoading="isLoading"
+            :error="error"
+            :form="form"
+          />
+        </div>
       </div>
-    </header>
-
-    <main class="mx-auto max-w-7xl px-4 py-12">
-      <RouterView />
-    </main>
+    </div>
   </div>
 </template>
