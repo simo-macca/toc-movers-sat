@@ -118,13 +118,16 @@ const downloadData = async (type) => {
 
 <template>
   <div class="space-y-6">
-    <div v-if="error" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+    <div
+      v-if="error"
+      class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 transition-colors duration-300 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
+    >
       {{ error }}
     </div>
 
     <div
       v-if="!solveResponse && !isLoading && !error"
-      class="flex h-full min-h-125 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white text-slate-400"
+      class="flex h-full min-h-125 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white text-slate-400 transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500"
     >
       <svg class="mb-4 h-16 w-16 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -134,51 +137,59 @@ const downloadData = async (type) => {
           d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
         ></path>
       </svg>
-      <p class="text-lg font-medium text-slate-500">Configure parameters and run the solver.</p>
+      <p class="text-lg font-medium text-slate-500 dark:text-slate-400">Configure parameters and run the solver.</p>
     </div>
 
     <div
       v-else-if="isLoading"
-      class="flex h-full min-h-125 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm"
+      class="flex h-full min-h-125 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900"
     >
-      <div class="mb-4 h-12 w-12 animate-spin rounded-full border-b-4 border-slate-800"></div>
-      <p class="font-medium text-slate-600">Computing logic constraints...</p>
+      <div class="mb-4 h-12 w-12 animate-spin rounded-full border-b-4 border-slate-800 dark:border-slate-400"></div>
+      <p class="font-medium text-slate-600 dark:text-slate-400">Computing logic constraints...</p>
     </div>
 
     <template v-else-if="solveResponse">
       <div
-        class="flex flex-col items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:flex-row"
+        class="flex flex-col items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-colors duration-300 md:flex-row dark:border-slate-800 dark:bg-slate-900"
       >
         <div>
           <h2
             class="text-2xl font-black"
-            :class="solveResponse.result.satisfiable ? 'text-emerald-600' : 'text-rose-600'"
+            :class="
+              solveResponse.result.satisfiable
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-rose-600 dark:text-rose-400'
+            "
           >
             {{ solveResponse.result.satisfiable ? 'Solution Found' : 'Unsatisfiable' }}
           </h2>
-          <p class="mt-1 font-mono text-xs text-slate-400">ID: {{ solveResponse.solve_id }}</p>
+          <p class="mt-1 font-mono text-xs text-slate-400 dark:text-slate-500">ID: {{ solveResponse.solve_id }}</p>
         </div>
 
         <div class="flex items-center gap-3 text-sm">
           <div v-if="solveResponse.result.stats" class="mr-4 text-right">
-            <p class="text-slate-500">
+            <p class="text-slate-500 dark:text-slate-400">
               Time:
-              <span class="font-bold text-slate-800">{{ solveResponse.result.stats.solve_time_ms.toFixed(1) }}ms</span>
+              <span class="font-bold text-slate-800 dark:text-slate-200"
+                >{{ solveResponse.result.stats.solve_time_ms.toFixed(1) }}ms</span
+              >
             </p>
-            <p v-if="solveResponse.result.satisfiable" class="text-slate-500">
+            <p v-if="solveResponse.result.satisfiable" class="text-slate-500 dark:text-slate-400">
               Steps:
-              <span class="font-bold text-slate-800">{{ solveResponse.result.num_time_steps }}</span>
+              <span class="font-bold text-slate-800 dark:text-slate-200">{{
+                solveResponse.result.num_time_steps
+              }}</span>
             </p>
           </div>
           <button
             @click="downloadData('cnf')"
-            class="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-200"
+            class="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             ⬇️ DIMACS CNF
           </button>
           <button
             @click="downloadData('mapping')"
-            class="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-200"
+            class="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             ⬇️ Mapping
           </button>
@@ -187,17 +198,17 @@ const downloadData = async (type) => {
 
       <div
         v-if="solveResponse.result.satisfiable && solveResponse.result.plan"
-        class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900"
       >
         <div
-          class="sticky top-0 z-99 mb-8 flex items-center justify-between rounded-xl bg-slate-800 p-3 text-white shadow-inner"
+          class="sticky top-0 z-99 mb-8 flex items-center justify-between rounded-xl bg-slate-800 p-3 text-white shadow-inner transition-colors duration-300 dark:bg-slate-950 dark:shadow-black/50"
         >
           <div class="px-4 font-mono text-lg font-bold text-emerald-400">T = {{ currentStep }}</div>
 
           <div class="flex items-center gap-2">
             <button
               @click="cycleSpeed"
-              class="mr-4 rounded-lg bg-slate-700 px-3 py-1.5 font-mono text-sm font-bold text-emerald-400 transition-colors hover:bg-slate-600"
+              class="mr-4 rounded-lg bg-slate-700 px-3 py-1.5 font-mono text-sm font-bold text-emerald-400 transition-colors hover:bg-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700"
               title="Playback Speed"
             >
               {{ playbackSpeed }}x

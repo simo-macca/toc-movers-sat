@@ -64,12 +64,16 @@ const submitSolve = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 p-4 font-sans text-slate-800 md:p-8">
+  <div
+    class="min-h-screen bg-slate-50 p-4 font-sans text-slate-800 transition-colors duration-300 md:p-8 dark:bg-slate-950 dark:text-slate-100"
+  >
     <div class="mx-auto">
-      <header class="mb-8 flex items-end justify-between border-b border-slate-200 pb-4">
+      <header
+        class="mb-8 flex items-end justify-between border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-slate-800"
+      >
         <div>
-          <h1 class="text-4xl font-extrabold tracking-tight text-slate-800">Movers SAT Solver</h1>
-          <p class="mt-2 text-lg text-slate-500">Optimal logistics planning using Glucose3</p>
+          <h1 class="text-4xl font-extrabold tracking-tight text-slate-800 dark:text-white">Movers SAT Solver</h1>
+          <p class="mt-2 text-lg text-slate-500 dark:text-slate-400">Optimal logistics planning using Glucose3</p>
         </div>
       </header>
 
