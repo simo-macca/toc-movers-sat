@@ -118,10 +118,7 @@ const downloadData = async (type) => {
 
 <template>
   <div class="space-y-6">
-    <div
-      v-if="error"
-      class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700"
-    >
+    <div v-if="error" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
       {{ error }}
     </div>
 
@@ -166,15 +163,11 @@ const downloadData = async (type) => {
           <div v-if="solveResponse.result.stats" class="mr-4 text-right">
             <p class="text-slate-500">
               Time:
-              <span class="font-bold text-slate-800"
-                >{{ solveResponse.result.stats.solve_time_ms.toFixed(1) }}ms</span
-              >
+              <span class="font-bold text-slate-800">{{ solveResponse.result.stats.solve_time_ms.toFixed(1) }}ms</span>
             </p>
             <p v-if="solveResponse.result.satisfiable" class="text-slate-500">
               Steps:
-              <span class="font-bold text-slate-800">{{
-                solveResponse.result.num_time_steps
-              }}</span>
+              <span class="font-bold text-slate-800">{{ solveResponse.result.num_time_steps }}</span>
             </p>
           </div>
           <button
@@ -197,7 +190,7 @@ const downloadData = async (type) => {
         class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
       >
         <div
-          class="mb-8 flex items-center justify-between rounded-xl bg-slate-800 p-3 text-white shadow-inner"
+          class="sticky top-0 z-99 mb-8 flex items-center justify-between rounded-xl bg-slate-800 p-3 text-white shadow-inner"
         >
           <div class="px-4 font-mono text-lg font-bold text-emerald-400">T = {{ currentStep }}</div>
 
@@ -210,11 +203,7 @@ const downloadData = async (type) => {
               {{ playbackSpeed }}x
             </button>
 
-            <button
-              @click="setStep(0)"
-              class="rounded-lg p-2 transition-colors hover:bg-slate-700"
-              title="Reset"
-            >
+            <button @click="setStep(0)" class="rounded-lg p-2 transition-colors hover:bg-slate-700" title="Reset">
               ⏮
             </button>
             <button
@@ -237,11 +226,7 @@ const downloadData = async (type) => {
             >
               ⏩
             </button>
-            <button
-              @click="setStep(maxStep)"
-              class="rounded-lg p-2 transition-colors hover:bg-slate-700"
-              title="End"
-            >
+            <button @click="setStep(maxStep)" class="rounded-lg p-2 transition-colors hover:bg-slate-700" title="End">
               ⏭
             </button>
           </div>
@@ -249,13 +234,9 @@ const downloadData = async (type) => {
           <div class="px-4 text-xs font-bold tracking-wider uppercase opacity-50">Timeline</div>
         </div>
 
-        <BuildingVisualizer
-          :floorsReversed="floorsReversed"
-          :currentState="currentState"
-          :task="form.task"
-        />
+        <BuildingVisualizer :floorsReversed="floorsReversed" :currentState="currentState" :task="form.task" />
 
-        <ActionLog :currentActions="currentActions" :currentStep="currentStep" :maxStep="maxStep" />
+        <ActionLog :currentActions="currentActions" :currentStep="currentStep" :maxStep="maxStep" :task="form.task" />
       </div>
     </template>
   </div>

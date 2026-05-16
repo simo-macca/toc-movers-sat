@@ -26,9 +26,7 @@ const getItemsOnFloor = (floorNum) => {
 </script>
 
 <template>
-  <div
-    class="relative max-h-170 overflow-x-hidden overflow-y-auto rounded-lg border-4 border-slate-800 bg-blue-50 shadow-inner"
-  >
+  <div class="relative max-h-170 overflow-auto rounded-lg border-4 border-slate-800 bg-blue-50 shadow-inner">
     <div
       v-for="floorNum in floorsReversed"
       :key="floorNum"
@@ -41,13 +39,10 @@ const getItemsOnFloor = (floorNum) => {
         {{ floorNum }}
       </div>
 
-      <div class="flex w-full items-end gap-4 transition-all duration-300">
+      <div class="flex w-full items-start gap-4 pt-3.5 transition-all duration-300">
         <MoverFigure v-for="person in getMoversOnFloor(floorNum)" :key="person" :name="person" />
 
-        <div
-          v-if="getMoversOnFloor(floorNum).length > 0 && getItemsOnFloor(floorNum).length > 0"
-          class="w-4"
-        ></div>
+        <div v-if="getMoversOnFloor(floorNum).length > 0 && getItemsOnFloor(floorNum).length > 0" class="w-4"></div>
 
         <ItemFigure v-for="item in getItemsOnFloor(floorNum)" :key="item" :name="item" />
       </div>

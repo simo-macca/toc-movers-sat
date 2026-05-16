@@ -79,12 +79,7 @@ const submitSolve = async () => {
         </div>
 
         <div class="lg:col-span-9">
-          <ResultsPanel
-            :solveResponse="solveResponse"
-            :isLoading="isLoading"
-            :error="error"
-            :form="form"
-          />
+          <ResultsPanel :solveResponse="solveResponse" :isLoading="isLoading" :error="error" :form="form" />
         </div>
       </div>
     </div>

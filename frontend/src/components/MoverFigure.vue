@@ -15,7 +15,7 @@ defineProps({
       </div>
     </div>
 
-    <span class="mt-1 text-[10px] font-bold tracking-wider text-slate-600 uppercase">
+    <span class="mt-1 truncate text-center text-[10px] font-bold tracking-wider text-slate-600 uppercase">
       {{ name.replace('person_', 'P') }}
     </span>
   </div>

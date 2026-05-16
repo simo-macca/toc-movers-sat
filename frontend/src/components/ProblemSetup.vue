@@ -30,8 +30,7 @@ watch(
     while (localForm.value.person_names.length < newCount)
       localForm.value.person_names.push(`Mover ${localForm.value.person_names.length + 1}`)
 
-    if (localForm.value.person_names.length > newCount)
-      localForm.value.person_names.splice(newCount)
+    if (localForm.value.person_names.length > newCount) localForm.value.person_names.splice(newCount)
 
     // adjust goal floors array
     while (localForm.value.goal_floors.length < newCount) localForm.value.goal_floors.push(0)
@@ -85,8 +84,7 @@ const removeItem = (index) => {
           <input
             type="number"
             v-model.number="localForm.num_floors"
-            min="2"
-            max="15"
+            min="1"
             class="w-full rounded-lg border border-slate-300 bg-slate-50 p-2.5 shadow-sm"
             required
           />
@@ -97,7 +95,6 @@ const removeItem = (index) => {
             type="number"
             v-model.number="localForm.num_persons"
             min="1"
-            max="10"
             class="w-full rounded-lg border border-slate-300 bg-slate-50 p-2.5 shadow-sm"
             required
           />
@@ -118,11 +115,7 @@ const removeItem = (index) => {
             + Add Item
           </button>
         </div>
-        <div
-          v-for="(item, index) in localForm.items"
-          :key="index"
-          class="mb-2 flex items-center gap-2"
-        >
+        <div v-for="(item, index) in localForm.items" :key="index" class="mb-2 flex items-center gap-2">
           <input
             type="text"
             v-model="item.name"
@@ -152,17 +145,12 @@ const removeItem = (index) => {
         </p>
       </div>
 
-      <div
-        v-if="showAdvanced"
-        class="space-y-4 rounded-xl border border-blue-200 bg-blue-50/50 p-4"
-      >
-        <h3
-          class="border-b border-blue-200 pb-2 text-xs font-bold tracking-wide text-blue-800 uppercase"
-        >
+      <div v-if="showAdvanced" class="space-y-4 rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+        <h3 class="border-b border-blue-200 pb-2 text-xs font-bold tracking-wide text-blue-800 uppercase">
           Advanced Engine Options
         </h3>
 
-        <div>
+        <div class="max-h-80 overflow-scroll">
           <label class="mb-2 block text-sm font-semibold text-slate-700">Custom Mover Names</label>
           <div class="grid grid-cols-2 gap-2">
             <input
@@ -177,19 +165,15 @@ const removeItem = (index) => {
           </div>
         </div>
 
-        <div v-if="localForm.task === 1">
-          <label class="mb-2 block text-sm font-semibold text-slate-700"
-            >Target Floors (Goal)</label
-          >
+        <div v-if="localForm.task === 1" class="max-h-80 overflow-scroll">
+          <label class="mb-2 block text-sm font-semibold text-slate-700">Target Floors (Goal)</label>
           <div class="grid grid-cols-2 gap-2">
             <div
               v-for="(name, idx) in localForm.person_names"
               :key="idx"
               class="flex items-center gap-2 rounded-md border border-slate-200 bg-white p-1.5"
             >
-              <span class="w-full truncate px-1 text-xs font-medium text-slate-600"
-                >{{ name }}:</span
-              >
+              <span class="w-full truncate px-1 text-xs font-medium text-slate-600">{{ name }}:</span>
               <input
                 type="number"
                 v-model.number="localForm.goal_floors[idx]"
@@ -204,18 +188,13 @@ const removeItem = (index) => {
 
         <div class="border-t border-blue-200 pt-2">
           <label class="mb-1 block text-sm font-semibold text-slate-700">Solving Mode</label>
-          <select
-            v-model="localForm.solve_mode"
-            class="mb-3 w-full rounded-md border border-slate-300 p-2 text-sm"
-          >
+          <select v-model="localForm.solve_mode" class="mb-3 w-full rounded-md border border-slate-300 p-2 text-sm">
             <option value="optimal">Iterative Deepening (Find Shortest)</option>
             <option value="fixed">Fixed Horizon (Solve exact T)</option>
           </select>
 
           <div v-if="localForm.solve_mode === 'optimal'">
-            <label class="mb-1 block text-sm font-semibold text-slate-700"
-              >Max Steps (Timeout)</label
-            >
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Max Steps (Timeout)</label>
             <input
               type="number"
               v-model.number="localForm.max_steps"
@@ -230,9 +209,7 @@ const removeItem = (index) => {
           </div>
 
           <div v-if="localForm.solve_mode === 'fixed'">
-            <label class="mb-1 block text-sm font-semibold text-slate-700"
-              >Exact Time Horizon (T)</label
-            >
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Exact Time Horizon (T)</label>
             <input
               type="number"
               v-model.number="localForm.time_steps"
@@ -241,9 +218,7 @@ const removeItem = (index) => {
               class="w-full rounded-md border border-slate-300 p-2 text-sm"
               required
             />
-            <p class="mt-1 text-[10px] text-slate-500">
-              Only checks if a plan exists in exactly T steps.
-            </p>
+            <p class="mt-1 text-[10px] text-slate-500">Only checks if a plan exists in exactly T steps.</p>
           </div>
         </div>
       </div>
