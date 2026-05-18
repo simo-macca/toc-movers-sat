@@ -10,7 +10,6 @@ export async function solveProblem(payload, timeout = DEFAULT_TIMEOUT) {
       signal: AbortSignal.timeout(timeout),
     })
 
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       throw new Error(errorData.detail || `API Error: ${response.status}`)
@@ -55,7 +54,7 @@ export async function solveProblemFixed(payload, timeout = DEFAULT_TIMEOUT) {
 export async function fetchCNF(solveId, timeout = 10000) {
   try {
     const response = await fetch(`${API_BASE_URL}/cnf/${solveId}`, {
-      signal: AbortSignal.timeout(timeout)
+      signal: AbortSignal.timeout(timeout),
     })
 
     if (!response.ok) throw new Error('Failed to fetch CNF')
@@ -70,7 +69,7 @@ export async function fetchCNF(solveId, timeout = 10000) {
 export async function fetchMapping(solveId, timeout = 10000) {
   try {
     const response = await fetch(`${API_BASE_URL}/mapping/${solveId}`, {
-      signal: AbortSignal.timeout(timeout)
+      signal: AbortSignal.timeout(timeout),
     })
     if (!response.ok) throw new Error('Failed to fetch Mapping')
 

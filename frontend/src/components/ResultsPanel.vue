@@ -268,12 +268,25 @@ const downloadData = async (type) => {
         v-else-if="!solveResponse.result.satisfiable"
         class="mt-6 flex h-full min-h-125 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-rose-300 bg-rose-50 p-6 text-center transition-colors duration-300 dark:border-rose-900/50 dark:bg-rose-950/20"
       >
-        <svg class="mb-4 h-16 w-16 text-rose-500 opacity-75 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        <svg
+          class="mb-4 h-16 w-16 text-rose-500 opacity-75 dark:text-rose-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          ></path>
         </svg>
         <h3 class="text-xl font-bold text-rose-700 dark:text-rose-400">This problem cannot be solved</h3>
-        <p class="mt-2 text-rose-600/80 dark:text-rose-300/80">The constraints given are unsatisfiable. Try adjusting the parameters, reducing the goal complexity, or increasing the max/time steps.</p>
+        <p class="mt-2 text-rose-600/80 dark:text-rose-300/80">
+          The constraints given are unsatisfiable. Try adjusting the parameters, reducing the goal complexity, or
+          increasing the max/time steps.
+        </p>
       </div>
-      </template>
+    </template>
   </div>
 </template>

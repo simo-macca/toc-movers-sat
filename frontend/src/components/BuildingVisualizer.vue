@@ -30,7 +30,7 @@ const getItemsOnFloor = (floorNum) => {
     class="relative max-h-170 overflow-auto rounded-lg border-4 border-slate-800 bg-blue-50 shadow-inner transition-colors duration-300 dark:border-slate-700 dark:bg-slate-950"
   >
     <div class="flex min-w-max flex-col">
-    <!-- floor container -->
+      <!-- floor container -->
       <div
         v-for="floorNum in floorsReversed"
         :key="floorNum"
