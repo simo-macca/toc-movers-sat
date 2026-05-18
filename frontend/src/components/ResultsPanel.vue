@@ -118,6 +118,7 @@ const downloadData = async (type) => {
 
 <template>
   <div class="space-y-6">
+    <!-- error container from the api call -->
     <div
       v-if="error"
       class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 transition-colors duration-300 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
@@ -125,6 +126,7 @@ const downloadData = async (type) => {
       {{ error }}
     </div>
 
+    <!-- start container before run the solver -->
     <div
       v-if="!solveResponse && !isLoading && !error"
       class="flex h-full min-h-125 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white text-slate-400 transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500"
@@ -140,6 +142,7 @@ const downloadData = async (type) => {
       <p class="text-lg font-medium text-slate-500 dark:text-slate-400">Configure parameters and run the solver.</p>
     </div>
 
+    <!-- loading container -->
     <div
       v-else-if="isLoading"
       class="flex h-full min-h-125 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900"
@@ -148,10 +151,12 @@ const downloadData = async (type) => {
       <p class="font-medium text-slate-600 dark:text-slate-400">Computing logic constraints...</p>
     </div>
 
+    <!-- problem solved -->
     <template v-else-if="solveResponse">
       <div
         class="flex flex-col items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-colors duration-300 md:flex-row dark:border-slate-800 dark:bg-slate-900"
       >
+        <!-- solution found or not title -->
         <div>
           <h2
             class="text-2xl font-black"
@@ -166,7 +171,9 @@ const downloadData = async (type) => {
           <p class="mt-1 font-mono text-xs text-slate-400 dark:text-slate-500">ID: {{ solveResponse.solve_id }}</p>
         </div>
 
+        <!-- header container -->
         <div class="flex items-center gap-3 text-sm">
+          <!-- general stats -->
           <div v-if="solveResponse.result.stats" class="mr-4 text-right">
             <p class="text-slate-500 dark:text-slate-400">
               Time:
@@ -181,12 +188,14 @@ const downloadData = async (type) => {
               }}</span>
             </p>
           </div>
+          <!-- cnf download button -->
           <button
             @click="downloadData('cnf')"
             class="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             ⬇️ DIMACS CNF
           </button>
+          <!-- mapping download button -->
           <button
             @click="downloadData('mapping')"
             class="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
@@ -196,6 +205,7 @@ const downloadData = async (type) => {
         </div>
       </div>
 
+      <!-- building animation movers -->
       <div
         v-if="solveResponse.result.satisfiable && solveResponse.result.plan"
         class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900"
@@ -205,6 +215,7 @@ const downloadData = async (type) => {
         >
           <div class="px-4 font-mono text-lg font-bold text-emerald-400">T = {{ currentStep }}</div>
 
+          <!-- control speed panel -->
           <div class="flex items-center gap-2">
             <button
               @click="cycleSpeed"
@@ -245,10 +256,24 @@ const downloadData = async (type) => {
           <div class="px-4 text-xs font-bold tracking-wider uppercase opacity-50">Timeline</div>
         </div>
 
+        <!-- animation core container -->
         <BuildingVisualizer :floorsReversed="floorsReversed" :currentState="currentState" :task="form.task" />
 
+        <!-- log about the movers -->
         <ActionLog :currentActions="currentActions" :currentStep="currentStep" :maxStep="maxStep" :task="form.task" />
       </div>
-    </template>
+
+      <!-- unsatisfiable container -->
+      <div
+        v-else-if="!solveResponse.result.satisfiable"
+        class="mt-6 flex h-full min-h-125 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-rose-300 bg-rose-50 p-6 text-center transition-colors duration-300 dark:border-rose-900/50 dark:bg-rose-950/20"
+      >
+        <svg class="mb-4 h-16 w-16 text-rose-500 opacity-75 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+        <h3 class="text-xl font-bold text-rose-700 dark:text-rose-400">This problem cannot be solved</h3>
+        <p class="mt-2 text-rose-600/80 dark:text-rose-300/80">The constraints given are unsatisfiable. Try adjusting the parameters, reducing the goal complexity, or increasing the max/time steps.</p>
+      </div>
+      </template>
   </div>
 </template>

@@ -30,6 +30,7 @@ const getItemsOnFloor = (floorNum) => {
     class="relative max-h-170 overflow-auto rounded-lg border-4 border-slate-800 bg-blue-50 shadow-inner transition-colors duration-300 dark:border-slate-700 dark:bg-slate-950"
   >
     <div class="flex min-w-max flex-col">
+    <!-- floor container -->
       <div
         v-for="floorNum in floorsReversed"
         :key="floorNum"
@@ -43,10 +44,13 @@ const getItemsOnFloor = (floorNum) => {
         </div>
 
         <div class="flex flex-1 items-end gap-4 pt-3.5 pr-16 pb-2 pl-4 transition-all duration-300">
+          <!-- mover icon -->
           <MoverFigure v-for="person in getMoversOnFloor(floorNum)" :key="person" :name="person" />
 
+          <!-- seperator -->
           <div v-if="getMoversOnFloor(floorNum).length > 0 && getItemsOnFloor(floorNum).length > 0"></div>
 
+          <!-- item icon -->
           <ItemFigure v-for="item in getItemsOnFloor(floorNum)" :key="item" :name="item" />
         </div>
       </div>

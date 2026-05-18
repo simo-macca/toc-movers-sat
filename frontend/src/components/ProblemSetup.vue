@@ -57,6 +57,7 @@ const removeItem = (index) => {
   <div
     class="h-fit rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900"
   >
+    <!-- title and advance toggle -->
     <h2 class="mb-6 flex items-center justify-between text-xl font-bold text-slate-800 dark:text-white">
       <span>Problem Setup</span>
       <button
@@ -68,7 +69,9 @@ const removeItem = (index) => {
       </button>
     </h2>
 
+    <!-- form section -->
     <form @submit.prevent="emit('submit')" class="space-y-5">
+      <!-- task type -->
       <div>
         <label class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-300">Task Type</label>
         <select
@@ -80,7 +83,9 @@ const removeItem = (index) => {
         </select>
       </div>
 
+      <!-- main movers setting -->
       <div class="grid grid-cols-2 gap-4">
+        <!-- number of floor -->
         <div>
           <label class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-300">Total Floors</label>
           <input
@@ -91,6 +96,8 @@ const removeItem = (index) => {
             required
           />
         </div>
+
+        <!-- number of movers -->
         <div>
           <label class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-300">Movers</label>
           <input
@@ -103,12 +110,14 @@ const removeItem = (index) => {
         </div>
       </div>
 
+      <!-- main item setting for task 2 -->
       <div
         v-if="localForm.task === 2"
         class="max-h-80 overflow-scroll rounded-xl border border-slate-200 bg-slate-100 p-4 transition-colors duration-300 dark:border-slate-700 dark:bg-slate-800/50"
       >
         <div class="mb-3 flex items-center justify-between">
           <label class="block text-sm font-bold text-slate-700 dark:text-slate-200">Items to Move</label>
+          <!-- add item button -->
           <button
             type="button"
             @click="addItem"
@@ -117,6 +126,8 @@ const removeItem = (index) => {
             + Add Item
           </button>
         </div>
+
+        <!-- floor where the item are at start -->
         <div v-for="(item, index) in localForm.items" :key="index" class="mb-2 flex items-center gap-2">
           <input
             type="text"
@@ -147,6 +158,7 @@ const removeItem = (index) => {
         </p>
       </div>
 
+      <!-- advance settings -->
       <div
         v-if="showAdvanced"
         class="space-y-4 rounded-xl border border-blue-200 bg-blue-50/50 p-4 transition-colors duration-300 dark:border-blue-900/50 dark:bg-blue-900/20"
@@ -157,6 +169,7 @@ const removeItem = (index) => {
           Advanced Engine Options
         </h3>
 
+        <!-- change movers' name -->
         <div class="max-h-80 overflow-scroll">
           <label class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Custom Mover Names</label>
           <div class="grid grid-cols-2 gap-2">
@@ -172,6 +185,7 @@ const removeItem = (index) => {
           </div>
         </div>
 
+        <!-- target floor for each movers for task 1 -->
         <div v-if="localForm.task === 1" class="max-h-80 overflow-scroll">
           <label class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300"
             >Target Floors (Goal)</label
@@ -197,6 +211,7 @@ const removeItem = (index) => {
           </div>
         </div>
 
+        <!-- solve mode selection -->
         <div class="border-t border-blue-200 pt-2 dark:border-blue-900/50">
           <label class="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-300">Solving Mode</label>
           <select
@@ -243,6 +258,7 @@ const removeItem = (index) => {
         </div>
       </div>
 
+      <!-- run button -->
       <button
         type="submit"
         :disabled="isLoading"

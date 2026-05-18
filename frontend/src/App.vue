@@ -26,6 +26,8 @@ const form = ref({
 })
 
 const submitSolve = async () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+
   isLoading.value = true
   error.value = null
   solveResponse.value = null
@@ -68,6 +70,7 @@ const submitSolve = async () => {
     class="min-h-screen bg-slate-50 p-4 font-sans text-slate-800 transition-colors duration-300 md:p-8 dark:bg-slate-950 dark:text-slate-100"
   >
     <div class="mx-auto">
+      <!-- title -->
       <header
         class="mb-8 flex items-end justify-between border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-slate-800"
       >
@@ -77,11 +80,14 @@ const submitSolve = async () => {
         </div>
       </header>
 
+      <!-- dynamic container -->
       <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <!-- setup configuration -->
         <div class="lg:col-span-3">
           <ProblemSetup v-model:form="form" :isLoading="isLoading" @submit="submitSolve" />
         </div>
 
+        <!-- animation container -->
         <div class="lg:col-span-9">
           <ResultsPanel :solveResponse="solveResponse" :isLoading="isLoading" :error="error" :form="form" />
         </div>
