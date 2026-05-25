@@ -187,3 +187,4 @@ def get_mapping(solve_id: str):
 def health():
     """Return a simple health-check response."""
     return {"status": "ok", "solver": "glucose3"}
+
