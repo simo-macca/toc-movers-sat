@@ -7,17 +7,21 @@ after the initial solve request.
 """
 
 import uuid
+import multiprocessing
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.models.problem import ProblemConfig, SolverResult, ItemPlacement
-from app.solver.runner import solve_optimal, solve_fixed
 
 router = APIRouter()
 
 # In-memory cache keyed by solve_id (UUID). Does not persist across restarts.
 _result_cache: dict[str, SolverResult] = {}
+
+# Hard timeout in seconds to prevent the PySAT C-extension from causing cascading deadlocks.
+# This should be set slightly lower than your frontend's HTTP timeout limit.
+SOLVER_TIMEOUT_SECONDS = 118.0
 
 
 class SolveRequest(BaseModel):
@@ -65,8 +69,62 @@ class SolveResponse(BaseModel):
     result: SolverResult
 
 
+def _optimal_worker(config: ProblemConfig, task: int, max_steps: int | None, goal_floors: dict[int, int] | None, return_dict: dict):
+    """Isolated worker function to run iterative deepening optimal solver."""
+    from app.solver.runner import solve_optimal
+    try:
+        result = solve_optimal(config, task, max_steps, goal_floors)
+        return_dict['result'] = result
+    except Exception as e:
+        return_dict['error'] = str(e)
+
+
+def _fixed_worker(config: ProblemConfig, task: int, time_steps: int, goal_floors: dict[int, int] | None, return_dict: dict):
+    """Isolated worker function to run the fixed time horizon solver."""
+    from app.solver.runner import solve_fixed
+    try:
+        result = solve_fixed(config, task, time_steps, goal_floors)
+        return_dict['result'] = result
+    except Exception as e:
+        return_dict['error'] = str(e)
+
+
+def _run_solver_process(target_worker, worker_args: tuple) -> SolveResponse:
+    """
+    Auxiliary function to handle the multiprocessing setup, execution,
+    timeout enforcement, and response generation for the solver.
+    """
+    manager = multiprocessing.Manager()
+    return_dict = manager.dict()
+
+    # Append the return_dict to the arguments passed to the worker
+    full_args = (*worker_args, return_dict)
+
+    p = multiprocessing.Process(target=target_worker, args=full_args)
+    p.start()
+    p.join(timeout=SOLVER_TIMEOUT_SECONDS)
+
+    if p.is_alive():
+        # The solver took too long. Explicitly terminate the zombie process.
+        p.terminate()
+        p.join()
+        raise HTTPException(status_code=504, detail="Solver timeout exceeded. Process terminated.")
+
+    if 'error' in return_dict:
+        raise HTTPException(status_code=500, detail=f"Solver error: {return_dict['error']}")
+
+    if 'result' not in return_dict:
+        raise HTTPException(status_code=500, detail="Solver process failed unexpectedly.")
+
+    result = return_dict['result']
+    solve_id = str(uuid.uuid4())
+    _result_cache[solve_id] = result
+
+    return SolveResponse(solve_id=solve_id, result=result)
+
+
 @router.post("/solve", response_model=SolveResponse)
-def solve(req: SolveRequest):
+async def solve(req: SolveRequest):
     """Find the optimal (minimum-T) solution via iterative deepening."""
     config = ProblemConfig(
         num_floors=req.num_floors,
@@ -74,14 +132,14 @@ def solve(req: SolveRequest):
         person_names=req.person_names,
         items=req.items,
     )
-    result = solve_optimal(config, req.task, req.max_steps, req.goal_floors)
-    solve_id = str(uuid.uuid4())
-    _result_cache[solve_id] = result
-    return SolveResponse(solve_id=solve_id, result=result)
+    return _run_solver_process(
+        target_worker=_optimal_worker,
+        worker_args=(config, req.task, req.max_steps, req.goal_floors)
+    )
 
 
 @router.post("/solve/fixed", response_model=SolveResponse)
-def solve_at_fixed_t(req: FixedSolveRequest):
+async def solve_at_fixed_t(req: FixedSolveRequest):
     """Solve at an exact time horizon T."""
     config = ProblemConfig(
         num_floors=req.num_floors,
@@ -89,10 +147,10 @@ def solve_at_fixed_t(req: FixedSolveRequest):
         person_names=req.person_names,
         items=req.items,
     )
-    result = solve_fixed(config, req.task, req.time_steps, req.goal_floors)
-    solve_id = str(uuid.uuid4())
-    _result_cache[solve_id] = result
-    return SolveResponse(solve_id=solve_id, result=result)
+    return _run_solver_process(
+        target_worker=_fixed_worker,
+        worker_args=(config, req.task, req.time_steps, req.goal_floors)
+    )
 
 
 @router.get("/cnf/{solve_id}")

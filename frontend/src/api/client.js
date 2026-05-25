@@ -1,5 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
-const DEFAULT_TIMEOUT = 30000 // 30 seconds
+const DEFAULT_TIMEOUT = 1200000 // 2 minutes
 
 export async function solveProblem(payload, timeout = DEFAULT_TIMEOUT) {
   try {
