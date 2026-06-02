@@ -2,7 +2,7 @@
 
 A modern, interactive Vue 3 web application built to visualize and configure the "Movers" SAT problem. It connects to the FastAPI backend to generate optimal logistics plans using the `Glucose3` SAT solver.
 
-## ✨ Features
+## Features
 
 - **Dynamic Configuration:** Configure Task 1 (movement) and Task 2 (movement and items) problems.
 - **Advanced SAT Settings:** Exposes engine options like specific Goal Floors, Custom Mover Names, and Iterative Deepening timeouts vs. Fixed Time Horizons (T).
@@ -10,7 +10,7 @@ A modern, interactive Vue 3 web application built to visualize and configure the
 - **Playback Controls:** Fully controllable simulation timeline with `1x`, `2x`, and `4x` playback speeds.
 - **SAT Data Export:** 1-click downloads for raw `DIMACS CNF` constraints and `Variable Mapping` JSON for academic review.
 
-## 🏗️ Architecture
+## Architecture
 
 This project uses a modern "Smart Parent / Dumb Child" component architecture to ensure code remains lightweight and maintainable:
 
@@ -20,7 +20,7 @@ This project uses a modern "Smart Parent / Dumb Child" component architecture to
 - `BuildingVisualizer.vue` (Child): Pure UI component responsible *only* for rendering the visual state of floors, movers, and items.
 - `ActionLog.vue` (Child): Renders textual log outputs for the current simulation step.
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -65,7 +65,7 @@ npm run build
 
 This will generate a `dist/` directory containing static files ready to be served by any static hosting provider (Nginx, Vercel, Netlify, etc.).
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework:** Vue 3 (Composition API, `<script setup>`)
 - **Styling:** Tailwind CSS

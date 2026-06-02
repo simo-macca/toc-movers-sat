@@ -1,0 +1,20 @@
+\section{API Endpoints} \label{sec:api-endpoints}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Method} & \textbf{Path}                       & \textbf{Description}                                \\
+        \midrule
+        POST            & \texttt{/api/solve}                 & Find the optimal solution using iterative deepening \\
+        POST            & \texttt{/api/solve/fixed}           & Solve for an exact time horizon                     \\
+        GET             & \texttt{/api/cnf/\{solve\_id\}}     & Retrieve the DIMACS CNF of a previous solve         \\
+        GET             & \texttt{/api/mapping/\{solve\_id\}} & Retrieve the variable mapping of a previous solve   \\
+        GET             & \texttt{/api/health}                & Health check endpoint                               \\
+        \bottomrule
+    \end{tabular}
+    \caption{REST API endpoints exposed by the backend.}
+    \label{tab:api-endpoints-table}
+\end{table}
+
+\newpage

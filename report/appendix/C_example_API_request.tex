@@ -1,0 +1,17 @@
+\section{Example API Request} \label{sec:example-api-request}
+
+\begin{lstlisting}[language=bash,label={lst:example-api-request}]
+curl -X POST http://localhost:8000/api/solve \
+  -H "Content-Type: application/json" \
+  -d `{
+    "task": 2,
+    "num_floors": 3,
+    "num_persons": 2,
+    "person_names": ["Alice", "Bob"],
+    "items": [
+      {"name": "Sofa", "initial_floor": 2},
+      {"name": "Desk", "initial_floor": 1}
+    ],
+    "max_steps": 20
+  }`
+\end{lstlisting}

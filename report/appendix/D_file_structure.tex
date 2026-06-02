@@ -1,0 +1,46 @@
+\section{File Structure} \label{sec:file-structure}
+
+\begin{lstlisting}[label={lst:folder-structure}]
+TOC_MOVERS/
+|-- docker-compose.yml
+|-- README.md
+|-- backend/
+|   |-- Dockerfile
+|   |-- README.md
+|   |-- requirements.txt
+|   |-- cli.py
+|   |-- app/
+|   |   |-- config.py
+|   |   |-- main.py
+|   |   |-- api/
+|   |   |   |-- routes.py
+|   |   |-- encoding/
+|   |   |   |-- common_clauses.py
+|   |   |   |-- task1_encoder.py
+|   |   |   |-- task2_encoder.py
+|   |   |   |-- variables.py
+|   |   |-- models/
+|   |   |   |-- problem.py
+|   |   |-- output/
+|   |   |   |-- dimacs.py
+|   |   |   |-- mapping.py
+|   |   |-- solver/
+|   |       |-- decoder.py
+|   |       |-- runner.py
+|-- frontend/
+|   |-- Dockerfile
+|   |-- index.html
+|   |-- public/
+|   |-- src/
+|       |-- main.js
+|       |-- App.vue
+|       |-- api/
+|       |   |-- client.js
+|       |-- assets/
+|       |   |-- main.css
+|       |-- components/
+|           |-- ActionLog.vue
+|           |-- BuildingVisualizer.vue
+|           |-- ProblemSetup.vue
+|           |-- ResultsPanel.vue
+\end{lstlisting}

@@ -1,0 +1,304 @@
+\section{Constraint Encoding} \label{sec:constraint-encoding}
+The SAT formula is built from multiple groups of constraints.
+Task 1 contains constraints for movement only, while Task 2 extends these constraints with item and carrying rules.
+
+\subsection{Common Cardinality Constraints} \label{subsec:common-cardinality-constraints}
+
+Several rules require exactly-one or at-most-one constraints.
+For example, a mover must be on exactly one floor at every time step.
+The implementation builds these constraints using simple CNF combinators.
+
+\noindent Given a set of literals $L = \{l_1, l_2, \ldots, l_r\}$:
+
+\paragraph{At least one.}
+\[
+    l_1 \lor l_2 \lor \cdots \lor l_r.
+\]
+
+\paragraph{At most one.}
+\[
+    \bigwedge_{1 \leq a < b \leq r} (\neg l_a \lor \neg l_b).
+\]
+
+\paragraph{Exactly one.}
+\[
+    \left(l_1 \lor \cdots \lor l_r\right)
+    \land
+    \bigwedge_{1 \leq a < b \leq r} (\neg l_a \lor \neg l_b).
+\]
+
+\noindent The pairwise at-most-one encoding is not the most compact possible encoding, but it is simple, readable, and effective for the sizes considered in this project.
+
+\subsection{Task 1: Movement-Only Encoding} \label{subsec:task-1:-movement-only-encoding}
+
+Task 1 models the movement of persons independently from the items.
+All persons begin at floor $0$, and each person must reach a specified target floor at time $T$.
+
+\noindent Let:
+\[
+    P = \{0,\ldots,m-1\}, \qquad F = \{0,\ldots,n-1\}.
+\]
+
+\subsubsection*{A. Initial State}
+
+Each person starts on floor $0$:
+\[
+    \texttt{atFloor}(p,0,0)
+    \qquad \forall p \in P.
+\]
+
+\noindent The encoding also explicitly forbids the person from being on any other floor at time $0$:
+\[
+    \neg \texttt{atFloor}(p,f,0)
+    \qquad \forall p \in P,\ \forall f \in F,\ f \neq 0.
+\]
+
+\subsubsection*{B. Goal State}
+
+For each person $p$, a target floor $g_p$ is specified:
+\[
+    \texttt{atFloor}(p,g_p,T).
+\]
+
+\noindent In Task 2, all persons must end at the ground floor, so $g_p = 0$ for every person.
+
+\subsubsection*{C. Unique Floor}
+
+Each person must be on exactly one floor at every time step:
+\[
+    \text{ExactlyOne}\left(
+                         \texttt{atFloor}(p,0,t),
+                         \ldots,
+                         \texttt{atFloor}(p,n-1,t)
+    \right)
+\]
+for every $p \in P$ and $t \in \{0,\ldots,T\}$.
+
+\subsubsection*{D. Action Mutex}
+
+A person cannot ascend and descend at the same time:
+\[
+    \neg \texttt{ascends}(p,t) \lor \neg \texttt{descends}(p,t)
+\]
+for every $p \in P$ and $t < T$.
+
+\subsubsection*{E. Movement Preconditions}
+
+A person cannot ascend from the top floor:
+\[
+    \neg \texttt{ascends}(p,t)
+    \lor
+    \neg \texttt{atFloor}(p,n-1,t).
+\]
+
+\noindent Similarly, a person cannot descend from the ground floor:
+\[
+    \neg \texttt{descends}(p,t)
+    \lor
+    \neg \texttt{atFloor}(p,0,t).
+\]
+
+\subsubsection*{F. Effects and Frame Axioms}
+
+If a person ascends from floor $f-1$, then they must be on floor $f$ at the next time step:
+\[
+    \texttt{atFloor}(p,f-1,t) \land \texttt{ascends}(p,t)
+    \Rightarrow
+    \texttt{atFloor}(p,f,t+1).
+\]
+
+\noindent In CNF:
+\[
+    \neg \texttt{atFloor}(p,f-1,t)
+    \lor
+    \neg \texttt{ascends}(p,t)
+    \lor
+    \texttt{atFloor}(p,f,t+1).
+\]
+
+\noindent If a person descends from floor $f+1$, then they must be on floor $f$ at the next time step:
+\[
+    \texttt{atFloor}(p,f+1,t) \land \texttt{descends}(p,t)
+    \Rightarrow
+    \texttt{atFloor}(p,f,t+1).
+\]
+
+\noindent In CNF:
+\[
+    \neg \texttt{atFloor}(p,f+1,t)
+    \lor
+    \neg \texttt{descends}(p,t)
+    \lor
+    \texttt{atFloor}(p,f,t+1).
+\]
+
+\noindent Finally, if a person is idle, their floor is preserved:
+\[
+    \texttt{atFloor}(p,f,t)
+    \land
+    \neg \texttt{ascends}(p,t)
+    \land
+    \neg \texttt{descends}(p,t)
+    \Rightarrow
+    \texttt{atFloor}(p,f,t+1).
+\]
+
+\noindent In CNF:
+\[
+    \neg \texttt{atFloor}(p,f,t)
+    \lor
+    \texttt{ascends}(p,t)
+    \lor
+    \texttt{descends}(p,t)
+    \lor
+    \texttt{atFloor}(p,f,t+1).
+\]
+
+\subsection{Task 2: Movement and Carrying Encoding} \label{subsec:task-2:-movement-and-carrying-encoding}
+
+Task 2 extends Task 1 by introducing items and carrying constraints.
+All persons and all items must end on floor $0$.
+An item can only move downward when carried by a descending person.
+
+\noindent Let $I$ be the set of items.
+
+\subsubsection*{G. Item Initial State}
+
+Each item starts at its specified initial floor:
+\[
+    \texttt{atFloor}(i,f_i,0)
+    \qquad \forall i \in I.
+\]
+
+\noindent The encoding also forbids the item from being on any other floor at time $0$:
+\[
+    \neg \texttt{atFloor}(i,f,0)
+    \qquad \forall i \in I,\ \forall f \neq f_i.
+\]
+
+\subsubsection*{H. Item Goal State}
+
+Every item must be on the ground floor at time $T$:
+\[
+    \texttt{atFloor}(i,0,T)
+    \qquad \forall i \in I.
+\]
+
+\subsubsection*{I. Item Unique Floor}
+
+Each item must be on exactly one floor at every time step:
+\[
+    \text{ExactlyOne}\left(
+                         \texttt{atFloor}(i,0,t),
+                         \ldots,
+                         \texttt{atFloor}(i,n-1,t)
+    \right)
+\]
+for every item $i$ and time $t$.
+
+\subsubsection*{J. Carrying Preconditions}
+
+If a person carries an item, the person and item must be co-located.
+The implementation encodes this by requiring that if person $p$ carries item $i$ and person $p$ is on floor $f$, then item $i$ is also on floor $f$:
+\[
+    \texttt{carries}(p,i,t)
+    \land
+    \texttt{atFloor}(p,f,t)
+    \Rightarrow
+    \texttt{atFloor}(i,f,t).
+\]
+
+\noindent In CNF:
+\[
+    \neg \texttt{carries}(p,i,t)
+    \lor
+    \neg \texttt{atFloor}(p,f,t)
+    \lor
+    \texttt{atFloor}(i,f,t).
+\]
+
+\noindent Carrying also implies descending:
+\[
+    \texttt{carries}(p,i,t)
+    \Rightarrow
+    \texttt{descends}(p,t),
+\]
+which becomes:
+\[
+    \neg \texttt{carries}(p,i,t)
+    \lor
+    \texttt{descends}(p,t).
+\]
+
+\subsubsection*{K. Carrying Mutex}
+
+Each person can carry at most one item at a time:
+\[
+    \text{AtMostOne}\left(
+                        \texttt{carries}(p,i_1,t),
+                        \ldots,
+                        \texttt{carries}(p,i_k,t)
+    \right).
+\]
+
+\noindent Each item can be carried by at most one person at a time:
+\[
+    \text{AtMostOne}\left(
+                        \texttt{carries}(p_1,i,t),
+                        \ldots,
+                        \texttt{carries}(p_m,i,t)
+    \right).
+\]
+
+\subsubsection*{L. Ascending Precludes Carrying}
+
+A person cannot carry an item while ascending:
+\[
+    \neg \texttt{ascends}(p,t)
+    \lor
+    \neg \texttt{carries}(p,i,t).
+\]
+
+\noindent This is consistent with the rule that items can only be moved downward.
+
+\subsubsection*{M. Item Successor-State Axioms}
+
+If an item is on floor $f+1$ and is carried by a person at time $t$, then it moves down to floor $f$ at time $t+1$:
+\[
+    \texttt{atFloor}(i,f+1,t)
+    \land
+    \texttt{carries}(p,i,t)
+    \Rightarrow
+    \texttt{atFloor}(i,f,t+1).
+\]
+
+\noindent In CNF:
+\[
+    \neg \texttt{atFloor}(i,f+1,t)
+    \lor
+    \neg \texttt{carries}(p,i,t)
+    \lor
+    \texttt{atFloor}(i,f,t+1).
+\]
+
+\noindent If an item is not carried, it remains on the same floor:
+\[
+    \texttt{atFloor}(i,f,t)
+    \land
+    \neg \texttt{carries}(p_1,i,t)
+    \land \cdots \land
+    \neg \texttt{carries}(p_m,i,t)
+    \Rightarrow
+    \texttt{atFloor}(i,f,t+1).
+\]
+
+\noindent The corresponding CNF clause is:
+\[
+    \neg \texttt{atFloor}(i,f,t)
+    \lor
+    \texttt{carries}(p_1,i,t)
+    \lor \cdots \lor
+    \texttt{carries}(p_m,i,t)
+    \lor
+    \texttt{atFloor}(i,f,t+1).
+\]

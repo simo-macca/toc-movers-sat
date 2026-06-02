@@ -1,0 +1,120 @@
+\section{User Guide} \label{sec:user-guide}
+
+The project can be executed either with Docker Compose or manually by starting the backend and frontend separately.
+The recommended method is Docker Compose, because it starts both services with a single command and avoids dependency conflicts.
+
+\subsection{Docker Setup} \label{subsec:docker-setup}
+
+The repository includes a \texttt{docker-compose.yml} file at the project root.
+It defines two services:
+
+\begin{itemize}
+    \item \texttt{backend}: builds the FastAPI backend from \texttt{./backend} and exposes it on port \texttt{8000}.
+    \item \texttt{frontend}: builds the Vue/Vite frontend from \texttt{./frontend} and exposes it on port \texttt{3000}.
+\end{itemize}
+
+\noindent To start the complete application using Docker, run the following command from the root directory of the project:
+
+\begin{lstlisting}[language=bash,label={lst:start-docker}]
+docker-compose up --build
+\end{lstlisting}
+
+\noindent After the containers are running, the application can be accessed at:
+
+\begin{lstlisting}[language=bash, label={lst:endpoint-link}]
+Frontend UI:      http://localhost:3000
+Backend API docs: http://localhost:8000/docs
+Backend API:      http://localhost:8000/api
+\end{lstlisting}
+
+\noindent To stop the application, press:
+
+\begin{lstlisting}[language=bash, label={lst:stop-application}]
+Ctrl+C
+\end{lstlisting}
+
+\noindent Alternatively, to stop and remove the containers, run:
+
+\begin{lstlisting}[language=bash,label={lst:stop-docker}]
+docker-compose down
+\end{lstlisting}
+
+\noindent The frontend container is configured with the environment variable:
+
+\begin{lstlisting}[language=bash,label={lst:frontend-env}]
+VITE_API_BASE_URL=http://localhost:8000/api
+\end{lstlisting}
+
+\noindent This means that, when the frontend is opened in the browser at \texttt{localhost:3000}, API requests are sent to the backend at \texttt{localhost:8000/api}.
+
+\subsection{Backend Setup Without Docker} \label{subsec:backend-setup-without-docker}
+
+To run the backend manually:
+
+\begin{lstlisting}[language=bash,label={lst:run-backend}]
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+\end{lstlisting}
+
+\noindent On Windows, the virtual environment can be activated with:
+
+\begin{lstlisting}[language=bash,label={lst:create-venv-window}]
+.venv\Scripts\activate
+\end{lstlisting}
+
+\noindent The backend runs at:
+
+\begin{lstlisting}[language=bash,label={lst:backend-link}]
+http://localhost:8000
+\end{lstlisting}
+
+\noindent The API documentation is available at:
+
+\begin{lstlisting}[language=bash,label={lst:api-doc-link}]
+http://localhost:8000/docs
+\end{lstlisting}
+
+\subsection{Frontend Setup Without Docker} \label{subsec:frontend-setup-without-docker}
+
+To run the frontend manually:
+
+\begin{lstlisting}[language=bash, label={lst:run-frontend}]
+cd frontend
+npm install
+npm run dev
+\end{lstlisting}
+
+\noindent When running through Docker, the frontend is available at:
+
+\begin{lstlisting}[language=bash, label={lst:link-frontend-docker}]
+http://localhost:3000
+\end{lstlisting}
+
+\subsection{CLI Examples} \label{subsec:cli-examples}
+
+Task 1 example:
+
+\begin{lstlisting}[language=bash,label={lst:example-1}]
+python cli.py --floors 3 --persons 3 --task 1 --goal-floor 2
+\end{lstlisting}
+
+\noindent Task 2 example:
+
+\begin{lstlisting}[language=bash,label={lst:example-2}]
+python cli.py --floors 3 --persons 2 --items chair:1 table:2
+\end{lstlisting}
+
+\noindent Fixed-horizon solving:
+
+\begin{lstlisting}[language=bash,label={lst:example-3}]
+python cli.py --floors 3 --persons 2 --items chair:1 table:2 --fixed-t 5
+\end{lstlisting}
+
+\noindent Exporting DIMACS CNF:
+
+\begin{lstlisting}[language=bash,label={lst:exporting-dimacs}]
+python cli.py --floors 3 --persons 2 --items chair:1 table:2 --cnf-out problem.cnf
+\end{lstlisting}

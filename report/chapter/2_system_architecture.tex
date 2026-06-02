@@ -1,0 +1,76 @@
+\section{System Architecture} \label{sec:system-architecture}
+The system is divided into two main components: a Python backend and a Vue frontend.
+The backend is responsible for the formal SAT encoding, solver execution, model decoding, and output generation.
+The frontend is responsible for user interaction, input validation, and visualization of the computed plan.
+
+\begin{figure}[H]
+    \centering
+    \fbox{
+        \begin{minipage}{0.9\textwidth}
+            \centering
+            User Input (Frontend or CLI)\\
+            $\downarrow$\\
+            Problem Configuration\\
+            $\downarrow$\\
+            SAT Encoder\\
+            $\downarrow$\\
+            CNF Formula + Variable Mapping\\
+            $\downarrow$\\
+            Glucose3 SAT Solver\\
+            $\downarrow$\\
+            Model Decoder\\
+            $\downarrow$\\
+            Human-Readable Plan + Visualization
+        \end{minipage}
+    }
+    \caption{General pipeline of the Movers SAT Solver.}
+    \label{fig:pipeline}
+\end{figure}
+
+\subsection{Backend Architecture} \label{subsec:backend-architecture}
+
+The backend is implemented in Python using FastAPI\@.
+It exposes REST endpoints that allow the frontend to send a problem instance and receive either a satisfiable plan or an unsatisfiable result.
+
+\noindent The backend is organized into the following main modules:
+
+\begin{itemize}
+    \item \texttt{models/problem.py}: defines the Pydantic models for problem inputs and solver outputs.
+    \item \texttt{encoding/variables.py}: defines the Boolean variable families and maps symbolic variables to integer identifiers.
+    \item \texttt{encoding/common\_clauses.py}: provides reusable CNF helpers such as at-most-one, at-least-one, and exactly-one constraints.
+    \item \texttt{encoding/task1\_encoder.py}: encodes the movement-only problem.
+    \item \texttt{encoding/task2\_encoder.py}: extends Task 1 with item movement and carrying constraints.
+    \item \texttt{solver/runner.py}: runs Glucose3 either for a fixed time horizon or with iterative deepening.
+    \item \texttt{solver/decoder.py}: converts a satisfying SAT assignment into a readable sequence of time steps.
+    \item \texttt{output/dimacs.py}: serializes the generated CNF formula in DIMACS format.
+    \item \texttt{output/mapping.py}: exports the variable mapping as JSON\@.
+    \item \texttt{api/routes.py}: defines the REST API endpoints.
+\end{itemize}
+
+\noindent The API provides endpoints for solving a problem optimally, solving at a fixed horizon, downloading the DIMACS CNF file, and downloading the variable mapping.
+
+\subsection{Frontend Architecture} \label{subsec:frontend-architecture}
+
+The frontend is implemented using Vue and Tailwind CSS\@.
+It communicates with the backend through a small API client that sends JSON payloads to the FastAPI server and retrieves solver results.
+
+\noindent The frontend is divided into several components:
+
+\begin{itemize}
+    \item \texttt{App.vue}: maintains the global form state and coordinates solver requests.
+    \item \texttt{ProblemSetup.vue}: provides the form where the user selects the task type, number of floors, number of movers, items, and advanced solver options.
+    \item \texttt{ResultsPanel.vue}: displays solver status, runtime, number of steps, playback controls, and download buttons.
+    \item \texttt{BuildingVisualizer.vue}: renders the building floors and places movers and items on the correct floors for the selected time step.
+    \item \texttt{ActionLog.vue}: lists the actions performed by each mover at the current time step.
+\end{itemize}
+
+\noindent The interface allows two solving modes:
+
+\begin{itemize}
+    \item \textbf{Iterative Deepening:} searches for the shortest valid solution up to a maximum number of steps.
+    \item \textbf{Fixed Horizon:} checks whether a solution exists for an exact number of time steps.
+\end{itemize}
+
+\noindent When a solution is found, the user can play through the sequence using timeline controls.
+The frontend allows the user to download the generated DIMACS CNF instance and the variable mapping.
+The satisfying model returned by the SAT solver is decoded into the displayed step-by-step plan.

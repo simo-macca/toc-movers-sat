@@ -1,0 +1,56 @@
+\section{Complexity and Scalability Analysis} \label{sec:complexity-and-scalability-analysis}
+\subsection{Variable Growth} \label{subsec:variable-growth}
+
+Let:
+\begin{align*}
+    n &= \text{number of floors}, \\
+    m &= \text{number of movers}, \\
+    k &= \text{number of items}, \\
+    T &= \text{time horizon}.
+\end{align*}
+
+\noindent For Task 1, the number of variables is approximately:
+\[
+    m n (T+1) + 2mT.
+\]
+The first term represents mover positions, while the second term represents the ascend and descend action variables.
+
+\noindent For Task 2, item positions and carrying variables are added:
+\[
+    m n (T+1) + k n (T+1) + 2mT + mkT.
+\]
+
+\noindent Thus, the number of variables grows linearly with the time horizon $T$, but also depends on the product $mk$ because every mover-item pair may correspond to a carrying variable at every step.
+
+\subsection{Clause Growth} \label{subsec:clause-growth}
+
+The largest source of clauses comes from exactly-one and at-most-one constraints.
+Because the implementation uses pairwise at-most-one clauses, enforcing uniqueness over $r$ literals requires:
+\[
+    \binom{r}{2}
+\]
+binary clauses.
+
+\noindent For example, requiring a person to be on exactly one of $n$ floors at a given time step requires:
+\[
+    1 + \binom{n}{2}
+\]
+clauses.
+This is repeated for every person and every time step.
+
+\noindent Task 2 adds similar constraints for items, as well as carrying mutex constraints between movers and items.
+Therefore, the number of clauses grows polynomially in the input parameters for a fixed horizon.
+
+\subsection{SAT Solving Complexity} \label{subsec:sat-solving-complexity}
+
+\noindent Although the encoding size is polynomial in $n$, $m$, $k$, and $T$, SAT solving is NP-complete in the worst case.
+Therefore, there is no guarantee that every large instance will be solved quickly.
+
+\noindent In practice, modern SAT solvers such as Glucose3 exploit structure, unit propagation, clause learning, and branching heuristics.
+For the tested problem sizes, the solver usually returns results within milliseconds.
+
+\subsection{Practical Scalability} \label{subsec:practical-scalability}
+
+The most important factor affecting performance is the chosen time horizon.
+In fixed-horizon mode, an unrealistically small $T$ often produces an unsatisfiable instance quickly, while a larger $T$ may produce many more variables and clauses.
+In iterative deepening mode, the backend solves a sequence of formulas, which is useful for optimality but can become expensive when the optimal plan requires many steps.

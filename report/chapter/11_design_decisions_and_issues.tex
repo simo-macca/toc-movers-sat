@@ -1,0 +1,27 @@
+\section{Design Decisions and Issues} \label{sec:design-decisions-and-issues}
+
+\subsection{General CNF Instead of 3-CNF} \label{subsec:general-cnf-instead-of-3-cnf}
+
+The encoding uses general CNF clauses rather than forcing every clause to contain exactly three literals.
+Although 3-SAT is important theoretically, converting every constraint into 3-CNF would require additional auxiliary variables and would make the implementation less readable.
+General CNF is accepted directly by the PySAT solver interface, so this choice keeps the encoding simpler.
+
+\subsection{Pairwise Cardinality Encoding} \label{subsec:pairwise-cardinality-encoding}
+
+The system uses pairwise clauses for at-most-one constraints.
+This produces $O(r^2)$ clauses for a group of $r$ literals, but the implementation is straightforward and works well for the tested problem sizes.
+
+\subsection{Iterative Deepening for Optimality} \label{subsec:iterative-deepening-for-optimality}
+
+Finding the shortest plan is achieved by repeatedly solving fixed-horizon instances.
+This approach is easy to implement and gives a strong optimality guarantee: the first satisfiable horizon is the shortest possible one.
+
+\subsection{Readable Mapping Output} \label{subsec:readable-mapping-output}
+
+The project explicitly exports a mapping from integer SAT variables to readable names.
+This is useful both for debugging and for satisfying the requirement that the SAT instance and truth assignment be interpretable.
+
+\subsection{Frontend Visualization} \label{subsec:frontend-visualization}
+
+The frontend is not required for the logical encoding itself, but it makes the solver much easier to understand.
+Instead of only returning a list of Boolean assignments, the system shows a step-by-step animation of the plan.

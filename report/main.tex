@@ -1,0 +1,144 @@
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------
+% Packages
+% ------------------------------------------------------------
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[toc,page]{appendix}
+\usepackage{upquote}
+
+% ------------------------------------------------------------
+% Hyperref setup
+% ------------------------------------------------------------
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+
+% ------------------------------------------------------------
+% Code listing setup
+% ------------------------------------------------------------
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    columns=fullflexible,
+    keepspaces=true,
+    upquote=true,
+    showstringspaces=false,
+    backgroundcolor=\color{gray!5},
+    keywordstyle=\color{blue!70!black},
+    commentstyle=\color{green!40!black},
+    stringstyle=\color{orange!80!black}
+}
+
+% ------------------------------------------------------------
+% Title information
+% ------------------------------------------------------------
+\title{
+    \textbf{Movers SAT Solver: Report}\\
+    \large Optimal Logistics Planning Using Boolean Satisfiability
+}
+
+\author{
+    \textbf{Group:} Group C\\[0.5em]
+    \textbf{Members:}\\
+    Giovanni Barbieri\\
+    Vasyl Damian\\
+    Simona Di Lena\\
+    Cristian Nicolae Gheorghe\\
+    Simone Maccario\\
+    Patrick Magnani\\
+    Massimiliano Nicol\\[0.5em]
+    \textbf{Course:} Theory of Computation
+}
+
+\date{\today}
+
+\begin{document}
+
+    \maketitle
+
+    \begin{center}
+        \vspace{1em}
+        \textit{This report describes the design and implementation of a SAT-based solver for the movers problem.}
+    \end{center}
+
+    \newpage
+
+    \tableofcontents
+
+    \newpage
+
+    \input{chapter/1_introduction}
+    \newpage
+
+    \input{chapter/2_system_architecture}
+    \newpage
+
+    \input{chapter/3_theoretical_background}
+    \newpage
+
+    \input{chapter/4_boolean_variable_representation}
+    \newpage
+
+    \input{chapter/5_constraint_encoding}
+    \newpage
+
+    \input{chapter/6_solver_execution_and_model_decoding}
+    \newpage
+
+    \input{chapter/7_DIMACS_and_variable_mapping_output}
+    \newpage
+
+    \input{chapter/8_frontend_functionality}
+    \newpage
+
+    \input{chapter/9_complexity_and_scalability_analysis}
+    \newpage
+
+    \input{chapter/10_experimental_evaluation}
+    \newpage
+
+    \input{chapter/11_design_decisions_and_issues}
+    \newpage
+
+    \input{chapter/12_limitations}
+    \newpage
+
+    \input{chapter/13_conclusion}
+    \newpage
+
+    \begin{appendices}
+
+        \input{appendix/A_user_guide}
+        \newpage
+
+        \input{appendix/B_API_endpoints}
+        \newpage
+
+        \input{appendix/C_example_API_request}
+        \newpage
+
+        \input{appendix/D_file_structure}
+    \end{appendices}
+
+\end{document}

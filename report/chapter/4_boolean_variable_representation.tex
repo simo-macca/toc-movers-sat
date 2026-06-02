@@ -1,0 +1,47 @@
+\section{Boolean Variable Representation} \label{sec:boolean-variable-representation}
+The encoding uses several families of propositional variables.
+The most important ones are shown in Table~\ref{tab:variables}.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Variable}         & \textbf{Meaning}                              \\
+        \midrule
+        $\texttt{atFloor}(p,f,t)$ & Person $p$ is on floor $f$ at time $t$        \\
+        $\texttt{atFloor}(i,f,t)$ & Item $i$ is on floor $f$ at time $t$          \\
+        $\texttt{ascends}(p,t)$   & Person $p$ ascends one floor during step $t$  \\
+        $\texttt{descends}(p,t)$  & Person $p$ descends one floor during step $t$ \\
+        $\texttt{carries}(p,i,t)$ & Person $p$ carries item $i$ during step $t$   \\
+        \bottomrule
+    \end{tabular}
+    \caption{Boolean variable families used in the SAT encoding.}
+    \label{tab:variables}
+\end{table}
+
+\noindent In the implementation, each symbolic variable is assigned a unique positive integer using a PySAT \texttt{IDPool}.
+This is necessary because SAT solvers operate on integer variable identifiers rather than symbolic names.
+A separate mapping is produced so that the integer identifiers can be translated back into readable names such as:
+\[
+    \texttt{atFloor(Alice, 2, 5)}
+\]
+or
+\[
+    \texttt{carries(Bob, Sofa, 7)}.
+\]
+
+\noindent For a problem with $n$ floors, $m$ movers, $k$ items, and time horizon $T$, the variable families have the following approximate sizes:
+
+\begin{itemize}
+    \item Person position variables: $m \cdot n \cdot (T+1)$.
+    \item Item position variables: $k \cdot n \cdot (T+1)$.
+    \item Ascend variables: $m \cdot T$.
+    \item Descend variables: $m \cdot T$.
+    \item Carry variables: $m \cdot k \cdot T$.
+\end{itemize}
+
+Therefore, Task 2 uses approximately
+\[
+    m n (T+1) + k n (T+1) + 2mT + mkT
+\]
+Boolean variables.

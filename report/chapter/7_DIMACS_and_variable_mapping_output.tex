@@ -1,0 +1,34 @@
+\section{DIMACS and Variable Mapping Output} \label{sec:dimacs-and-variable-mapping-output}
+The system exports two important files for verification and debugging.
+
+\subsection{DIMACS CNF} \label{subsec:dimacs-cnf}
+
+The generated SAT instance is exported in DIMACS CNF format.
+The file contains:
+
+\begin{itemize}
+    \item comment lines beginning with \texttt{c},
+    \item a problem line of the form \texttt{p cnf <variables> <clauses>},
+    \item one line per clause, ending in \texttt{0}.
+\end{itemize}
+
+\noindent An example clause line may look like:
+\begin{lstlisting}[label={lst:clause-example}]
+-10 -274 26 0
+\end{lstlisting}
+
+\noindent This allows the generated formula to be inspected manually or passed to an external SAT solver.
+
+\subsection{Variable Mapping} \label{subsec:variable-mapping}
+
+The variable mapping translates integer SAT variable identifiers into readable names.
+For example:
+\begin{lstlisting}[label={lst:mapping-example}]
+{
+  "274": "ascends(Alice, 0)",
+  "275": "descends(Alice, 0)",
+  "710": "carries(Alice, Sofa, 0)"
+}
+\end{lstlisting}
+
+\noindent This mapping is essential for interpreting a satisfying truth assignment.

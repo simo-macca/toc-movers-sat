@@ -1,0 +1,29 @@
+\section{Introduction} \label{sec:introduction}
+The goal of this project is to model and solve the \textit{movers problem} using Boolean satisfiability (SAT).
+The problem consists of emptying an $n$-floor building with a team of $m$ movers.
+The building contains a number of items located on different floors, and all persons and items must eventually end on the ground floor, represented as floor $0$.
+
+\noindent Time is assumed to be discrete.
+At every time step, each mover may perform one of the available actions:
+\[
+    \texttt{ascends}(p,t), \qquad
+    \texttt{descends}(p,t), \qquad
+    \texttt{carries}(p,i,t),
+\]
+where $p$ is a person, $i$ is an item, and $t$ is a time step.
+The action \texttt{ascends} moves a person up one floor, \texttt{descends} moves a person down one floor, and \texttt{carries} represents a person carrying an item down one floor while descending.
+Each action takes exactly one time step.
+
+\noindent The project was implemented as a complete SAT-based logistics planning system.
+The backend encodes the problem as a conjunctive normal form (CNF) formula and solves it using the Glucose3 SAT solver through the PySAT library.
+The frontend provides an interactive graphical interface where users can configure the number of floors, movers, items, and solving mode, then visualize the computed plan step by step.
+
+\noindent The final system supports two task variants:
+
+\begin{itemize}
+    \item \textbf{Task 1: Movement Only.} Movers start at floor $0$ and must reach specified target floors within a given time horizon.
+    \item \textbf{Task 2: Movement and Carrying.} Movers and items must all end on floor $0$.
+    Items can only move downward when carried by a descending mover.
+\end{itemize}
+
+\noindent The main objective of the solver is not only to check whether a plan exists for a fixed number of steps, but also to find the shortest valid plan using iterative deepening over the time horizon.

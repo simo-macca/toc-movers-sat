@@ -1,0 +1,18 @@
+\section{Theoretical Background} \label{sec:theoretical-background}
+Boolean satisfiability is the problem of determining whether there exists an assignment of truth values to Boolean variables that makes a propositional formula true.
+A formula in conjunctive normal form (CNF) is a conjunction of clauses, where each clause is a disjunction of literals.
+
+\noindent The movers problem is naturally modeled as a planning problem over discrete time.
+Instead of searching directly over sequences of actions, we encode the existence of a valid plan of length $T$ as a SAT formula:
+\[
+    \Phi_T.
+\]
+If $\Phi_T$ is satisfiable, then there exists a valid plan of length $T$.
+If it is unsatisfiable, no plan exists within that time horizon.
+
+\noindent This approach is useful because modern SAT solvers can efficiently handle large structured Boolean formulas.
+The problem is solved by increasing the time horizon until the first satisfiable formula is found:
+\[
+    T = 0, 1, 2, \ldots
+\]
+The first satisfiable $T$ corresponds to an optimal plan with respect to the number of time steps.

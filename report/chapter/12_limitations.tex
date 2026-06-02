@@ -1,0 +1,11 @@
+\section{Limitations} \label{sec:limitations}
+The current implementation has some limitations:
+
+\begin{itemize}
+    \item Large instances can generate many clauses, especially due to pairwise at-most-one constraints.
+    \item Iterative deepening may require solving many formulas before finding the optimal horizon.
+    \item The in-memory cache used for retrieving CNF and mapping files does not persist after the backend restarts.
+    \item The frontend is designed for moderate-sized examples; very large buildings or many movers/items may become visually crowded.
+    \item The carrying model assumes that items only move down while carried.
+    It does not model more complex actions such as passing items between people or carrying while staying on the same floor.
+\end{itemize}

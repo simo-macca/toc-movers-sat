@@ -1,0 +1,49 @@
+\section{Solver Execution and Model Decoding} \label{sec:solver-execution-and-model-decoding}
+The solver supports two execution modes.
+
+\subsection{Fixed-Horizon Solving} \label{subsec:fixed-horizon-solving}
+
+In fixed-horizon mode, the user specifies an exact time horizon $T$.
+The backend generates the CNF formula $\Phi_T$ and passes it to Glucose3.
+If the formula is satisfiable, the backend returns a decoded plan.
+If the formula is unsatisfiable, the backend reports that no plan exists for exactly that number of steps.
+
+\subsection{Optimal Solving by Iterative Deepening} \label{subsec:optimal-solving-by-iterative-deepening}
+
+In optimal mode, the backend tries increasing values of $T$:
+\[
+    0, 1, 2, \ldots, T_{\max}.
+\]
+For each value, it generates and solves a new CNF formula.
+The first satisfiable result is returned.
+This guarantees that the returned plan is optimal with respect to the number of time steps, assuming the search reaches a satisfiable horizon.
+
+\begin{algorithm}[H]
+    \caption{Iterative deepening strategy for finding the shortest plan.}
+    \label{alg:iterative}
+    \begin{algorithmic}[1]
+        \For{$T = 0$ \textbf{to} $T_{\max}$}
+            \State Encode problem at horizon $T$
+            \State Run SAT solver
+            \If{SAT}
+                \State Decode model \textbf{and return} plan
+            \EndIf
+        \EndFor
+        \State \textbf{return} UNSAT within bound
+    \end{algorithmic}
+\end{algorithm}
+
+\subsection{Model Decoding} \label{subsec:model-decoding}
+
+The SAT solver returns a model as a list of signed integers.
+Positive integers represent variables assigned true, while negative integers represent variables assigned false.
+The decoder extracts the true variables and reconstructs:
+
+\begin{itemize}
+    \item the position of every mover at each time step,
+    \item the position of every item at each time step,
+    \item each mover's action during each transition.
+\end{itemize}
+
+\noindent The decoded output is represented as a list of time-step objects.
+Each time step contains the current positions and the actions performed from that time step to the next one.

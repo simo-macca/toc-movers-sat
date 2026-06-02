@@ -1,0 +1,9 @@
+\section{Conclusion} \label{sec:conclusion}
+This project demonstrates how a logistics planning problem can be reduced to Boolean satisfiability.
+By introducing variables for positions, actions, and carrying relations, the movement of movers and items through a building can be represented as a CNF formula.
+
+\noindent The implementation supports both a movement-only version and a full movement-plus-items version of the problem.
+The backend uses PySAT and Glucose3 to solve the generated formulas, while the frontend provides an interactive way to configure and visualize problem instances.
+
+\noindent The solver successfully handles satisfiable and unsatisfiable cases, exports DIMACS CNF and variable mappings, and finds optimal plans using iterative deepening.
+Overall, the project connects theoretical concepts from SAT and computational logic with a practical planning application.
