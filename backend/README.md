@@ -1,34 +1,25 @@
-# Movers SAT Solver — Backend
+# OptiMove Backend: Movers SAT Solver
 
-A high-performance Python/FastAPI computational backend that solves the **Movers logistics planning problem** using **Boolean Satisfiability (SAT)**. Given a building with $N$ floors, $M$ movers, and a set of items, the backend encodes the problem into Conjunctive Normal Form (CNF), solves it with the **Glucose-3** SAT solver (via `python-sat`), and decodes the satisfying truth assignments into an optimal, step-by-step logistics plan.
+The Python/FastAPI backend of [OptiMove](../README.md). Given a building with $N$ floors, $M$ movers and a set of
+items, it encodes the **Movers planning problem** into Conjunctive Normal Form (CNF), solves it with the
+**Glucose-3** SAT solver (via `python-sat`), and decodes the satisfying assignment into an optimal, step-by-step plan.
+It is available as a REST API and as a command-line tool.
 
 ---
 
 ## Table of Contents
 
 - [Problem Formalization](#problem-formalization)
-  - [Task 1: Movement Only](#task-1-movement-only)
-  - [Task 2: Movement + Carrying](#task-2-movement--carrying)
 - [SAT Encoding Reference](#sat-encoding-reference)
   - [Propositional Variable Families](#propositional-variable-families)
-  - [Constraint Groups (Task 1: A–F)](#constraint-groups-task-1-a-f)
-  - [Constraint Groups (Task 2: G–M)](#constraint-groups-task-2-g-m)
-- [System Architecture](#system-architecture)
-  - [Directory Structure](#directory-structure)
-  - [Execution Pipeline](#execution-pipeline)
-- [Configuration & Settings](#configuration--settings)
+  - [Constraint Groups: Task 1 (A to F)](#constraint-groups-task-1-a-to-f)
+  - [Constraint Groups: Task 2 (G to M)](#constraint-groups-task-2-g-to-m)
+- [How Solving Works](#how-solving-works)
+- [Directory Structure](#directory-structure)
+- [Configuration](#configuration)
 - [Installation & Setup](#installation--setup)
-  - [Prerequisites](#prerequisites)
-  - [Local Setup](#local-setup)
-  - [Running the API Server](#running-the-api-server)
-  - [Docker Setup](#docker-setup)
 - [CLI Reference](#cli-reference)
 - [API Reference](#api-reference)
-  - [POST `/api/solve`](#post-apisolve)
-  - [POST `/api/solve/fixed`](#post-apisolvefixed)
-  - [GET `/api/cnf/{solve_id}`](#get-apicnfsolve_id)
-  - [GET `/api/mapping/{solve_id}`](#get-apimappingsolve_id)
-  - [GET `/api/health`](#get-apihealth)
 - [Testing](#testing)
 
 ---
@@ -38,6 +29,7 @@ A high-performance Python/FastAPI computational backend that solves the **Movers
 The movers problem models a discrete-time logistics scenario inside a building with floors $0, 1, \dots, N-1$ over time steps $t = 0, 1, \dots, T$.
 
 ### Task 1: Movement Only
+
 - $M$ movers start on the ground floor (Floor $0$) at $t = 0$.
 - Each mover must reach their designated goal floor at time $T$.
 - At each step $t \to t+1$, a mover can:
@@ -47,6 +39,7 @@ The movers problem models a discrete-time logistics scenario inside a building w
 - Movers cannot ascend above floor $N-1$ or descend below floor $0$.
 
 ### Task 2: Movement + Carrying
+
 - Extends Task 1 with items scattered across upper floors.
 - **Goal:** All movers **and** all items must reach floor $0$ at time $T$.
 - **Downwards-only carrying:** An item can only move downward if carried by a descending mover.
@@ -70,7 +63,7 @@ Propositional variables are registered dynamically using PySAT's `IDPool`:
 | `descends(person, time)`       | $p \in [0, M-1], t \in [0, T-1]$                     | Person $p$ descends one floor during transition $t \to t+1$ |
 | `carries(person, item, time)`  | $p \in [0, M-1], i \in \text{Items}, t \in [0, T-1]$ | Person $p$ carries item $i$ downwards during $t \to t+1$    |
 
-### Constraint Groups (Task 1: A–F)
+### Constraint Groups: Task 1 (A to F)
 
 Defined in [`app/encoding/task1_encoder.py`](app/encoding/task1_encoder.py):
 
@@ -83,7 +76,7 @@ Defined in [`app/encoding/task1_encoder.py`](app/encoding/task1_encoder.py):
 | **E** | Preconditions   | Cannot ascend from top floor: $\text{atFloor}(p, N-1, t) \to \neg \text{ascends}(p, t)$.<br>Cannot descend from ground floor: $\text{atFloor}(p, 0, t) \to \neg \text{descends}(p, t)$. |
 | **F** | Effects & Frame | Successor-state axioms for mover positions: moving up, moving down, or remaining idle preserves floor.                                                                                  |
 
-### Constraint Groups (Task 2: G–M)
+### Constraint Groups: Task 2 (G to M)
 
 Defined in [`app/encoding/task2_encoder.py`](app/encoding/task2_encoder.py) (augments Groups A–F):
 
@@ -99,187 +92,199 @@ Defined in [`app/encoding/task2_encoder.py`](app/encoding/task2_encoder.py) (aug
 
 ---
 
-## System Architecture
+## How Solving Works
 
-### Directory Structure
+```mermaid
+flowchart TD
+    Req[CLI or REST request] --> Val[Pydantic validation]
+    Val -->|invalid| E422[422 / exit code 2]
+    Val --> Mode{Mode}
+    Mode -->|Optimal| LB[Lower bound lb]
+    LB --> Iter[Loop T = lb, lb+1, ..., max_T]
+    Mode -->|Fixed| Fix[Single horizon T]
+    Iter --> Enc[CNF encoder: Task 1 or Task 2]
+    Fix --> Enc
+    Enc --> G3[Glucose-3 via PySAT]
+    G3 --> Res{SAT?}
+    Res -->|UNSAT, optimal mode| Iter
+    Res -->|UNSAT| Unsat[Result: UNSAT + stats + CNF]
+    Res -->|SAT| Dec[Decoder: true literals -> plan]
+    Dec --> Out[Result: plan + stats + CNF + mapping]
+```
+
+### Optimal search with a lower bound
+
+`solve_optimal` runs `solve_fixed` for increasing $T$ and returns the first satisfiable horizon. It does not start
+at $T = 0$ but at a provable lower bound, because every smaller $T$ is guaranteed UNSAT:
+
+- **Task 1:** movers climb at most one floor per step, so $T^* \ge \max(\text{goal floor})$.
+- **Task 2:** an item on floor $f$ cannot move before a mover has climbed to $f$ (at least $f$ steps), and then needs
+  $f$ carry steps, so $T^* \ge 2 \cdot \max(\text{item floor})$.
+
+The result is still optimal; only horizons that cannot work are skipped. `stats.horizons_tried` reports how many
+formulas were actually solved, and `stats.solve_time_ms` is the total time across them.
+
+### Process isolation and timeout
+
+Each API solve runs in a separate child process (started with `spawn`) that sends its result back over a queue.
+If it does not finish within `SOLVER_TIMEOUT_SECONDS` (default 118 s), the process is terminated and the API answers
+`504 Gateway Timeout`. If the process crashes, the API answers `500` straight away instead of waiting for the
+timeout. The handlers are synchronous, so FastAPI runs them in its thread pool and other requests are never blocked.
+
+### Result cache
+
+Results are kept in a thread-safe, in-memory **LRU cache** (`RESULT_CACHE_SIZE` entries, default 128) so the CNF
+and mapping can be downloaded after the solve. The cache does not survive restarts and is per process. This is
+why the production image runs a single uvicorn worker.
+
+---
+
+## Directory Structure
 
 ```
 backend/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py                  # FastAPI application entry point, CORS configuration
-│   ├── config.py                # Runtime configuration (Settings via pydantic-settings)
+│   ├── __init__.py              # Package version
+│   ├── main.py                  # FastAPI app, CORS
+│   ├── config.py                # Settings via pydantic-settings (env variables)
 │   ├── api/
-│   │   ├── __init__.py
-│   │   └── routes.py            # REST API endpoints, multiprocessing isolation, caching
+│   │   └── routes.py            # REST endpoints, process isolation, LRU cache
 │   ├── encoding/
-│   │   ├── __init__.py
-│   │   ├── common_clauses.py    # Cardinality combinators: AMO, ALO, Exactly-One
-│   │   ├── task1_encoder.py     # Task 1 CNF encoding (Groups A–F)
-│   │   ├── task2_encoder.py     # Task 2 CNF encoding (Groups G–M)
-│   │   └── variables.py         # Propositional variable factories & name mapping
+│   │   ├── common_clauses.py    # AMO, ALO, Exactly-One
+│   │   ├── task1_encoder.py     # Groups A–F
+│   │   ├── task2_encoder.py     # Groups G–M
+│   │   └── variables.py         # Variable factories & name mapping
 │   ├── models/
-│   │   ├── __init__.py
-│   │   └── problem.py           # Pydantic schemas (requests, responses, plan representations)
+│   │   ├── problem.py           # Domain models + validation (ProblemConfig, SolverResult, ...)
+│   │   └── api.py               # Request/response schemas (SolveRequest, FixedSolveRequest, ...)
 │   ├── output/
-│   │   ├── __init__.py
-│   │   ├── dimacs.py            # DIMACS CNF serializer with comment headers
-│   │   └── mapping.py           # Variable ID <-> symbolic name JSON serializer
+│   │   ├── dimacs.py            # DIMACS CNF serializer (with mapping comments)
+│   │   └── mapping.py           # Mapping -> JSON (CLI --mapping-out)
 │   └── solver/
-│       ├── __init__.py
-│       ├── runner.py            # Solver orchestration (fixed horizon & iterative deepening)
-│       └── decoder.py           # Decodes satisfying SAT assignment into step-by-step plan
+│       ├── runner.py            # solve_fixed, solve_optimal, horizon_lower_bound
+│       ├── decoder.py           # Model -> list of TimeStep
+│       └── worker.py            # Entry point of the isolated solver process
 ├── tests/
-│   ├── __init__.py
-│   ├── test_api.py              # API endpoint integration tests
-│   ├── test_task1.py            # Task 1 encoding correctness tests
-│   ├── test_task2.py            # Task 2 encoding correctness tests
-│   └── test_variables.py        # IDPool consistency and variable mapping tests
-├── cli.py                       # Standalone command-line interface
-├── Dockerfile                   # Container definition for the backend
-└── requirements.txt             # Python dependencies
-```
-
-### Execution Pipeline
-
-```mermaid
-flowchart TD
-    Req[User Request: CLI or REST API] --> Val[Pydantic ProblemConfig Validation]
-    Val --> Mode{Solver Mode}
-    Mode -->|Iterative Deepening| Iter[Runner: Loop T = 0, 1, 2, ... max_T]
-    Mode -->|Fixed Horizon| Fix[Runner: Fixed T]
-    Iter --> Enc[CNF Encoder: Task 1 or Task 2]
-    Fix --> Enc
-    Enc --> Pool[IDPool: Variable IDs]
-    Enc --> CNF[CNF Formula + Comments]
-    CNF --> G3[Glucose-3 Solver via PySAT]
-    G3 --> Res{Satisfiable?}
-    Res -->|UNSAT| Unsat[Return UNSAT & Stats]
-    Res -->|SAT| Dec[Decoder: Extract True Literals]
-    Dec --> Plan[Decoded Plan: List of TimeSteps]
-    Dec --> Map[Variable Mapping & DIMACS Export]
-    Plan --> Out[JSON Response / CLI Output / Cached Result]
-    Map --> Out
+│   ├── test_task1.py            # Task 1 encoding
+│   ├── test_task2.py            # Task 2 encoding and benchmarks
+│   ├── test_variables.py        # IDPool consistency, mapping names
+│   ├── test_api.py              # REST endpoints
+│   ├── test_validation.py       # Rejected inputs (422)
+│   └── test_improvements.py     # Lower bound, UNSAT export, cache, timeout, CLI
+├── cli.py
+├── Dockerfile                   # Targets: dev (reload) and prod (non-root)
+├── pyproject.toml
+├── requirements.txt             # Runtime dependencies
+└── requirements-dev.txt         # Runtime + pytest, httpx
 ```
 
 ---
 
-## Configuration & Settings
+## Configuration
 
-Settings are managed via `pydantic-settings` in [`app/config.py`](app/config.py) and can be configured through environment variables:
+All settings live in [`app/config.py`](app/config.py) and can be overridden with environment variables
+(case-insensitive):
 
-| Variable         | Type        | Default                                              | Description                                                  |
-|------------------|-------------|------------------------------------------------------|--------------------------------------------------------------|
-| `SOLVER_NAME`    | string      | `"g3"`                                               | PySAT solver identifier (`"g3"` = Glucose-3).                |
-| `MAX_TIME_STEPS` | integer     | `20`                                                 | Default upper bound on $T$ for iterative deepening searches. |
-| `CORS_ORIGINS`   | list / JSON | `["http://localhost:5173", "http://localhost:3000"]` | Allowed CORS origins for the frontend.                       |
+| Variable                 | Type       | Default                                              | Description                                                                      |
+|--------------------------|------------|------------------------------------------------------|----------------------------------------------------------------------------------|
+| `SOLVER_NAME`            | string     | `g3`                                                 | PySAT solver alias, validated at startup. E.g. `g3`, `g4`, `cd19`, `m22`, `mcb`. |
+| `MAX_TIME_STEPS`         | integer    | `20`                                                 | Default upper bound on $T$ for iterative deepening.                              |
+| `SOLVER_TIMEOUT_SECONDS` | float      | `118.0`                                              | Hard limit per API solve. Keep it below the frontend timeout (120 s).            |
+| `RESULT_CACHE_SIZE`      | integer    | `128`                                                | Number of recent results kept for CNF and mapping downloads.                     |
+| `CORS_ORIGINS`           | JSON list  | `["http://localhost:5173", "http://localhost:3000"]` | Allowed browser origins.                                                         |
 
-### Process Isolation & Deadlock Protection
-In [`app/api/routes.py`](app/api/routes.py), solver executions run in an isolated `multiprocessing.Process` governed by `SOLVER_TIMEOUT_SECONDS = 118.0`. This prevents PySAT C-extension deadlocks from blocking the ASGI worker thread. If the timeout expires, the child process is terminated with a `504 Gateway Timeout`.
+Example: `SOLVER_NAME=cd19 SOLVER_TIMEOUT_SECONDS=60 uvicorn app.main:app`.
 
 ---
 
 ## Installation & Setup
 
-### Prerequisites
-- Python 3.11 or Python 3.12
-- `pip` or modern Python package manager (`uv`, `pipenv`, etc.)
+**Prerequisites:** Python 3.11 or newer.
 
-### Local Setup
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt  # or: pip install -r requirements.txt (runtime only)
+```
 
-1. Create and activate a virtual environment:
-   ```bash
-   cd backend
-   python3 -m venv .venv
-   source .venv/bin/activate       # macOS / Linux
-   # .venv\Scripts\activate        # Windows PowerShell
-   ```
+Alternatively, install the package itself, which also adds an `optimove` command that runs the CLI:
 
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -e ".[dev]"
+```
 
-*(If `.venv` already exists with dependencies installed, simply activate it with `source .venv/bin/activate`).*
+### Running the API server
 
-### Running the API Server
-
-Start Uvicorn with auto-reload:
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-- **Interactive API Documentation (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **ReDoc Documentation:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
-- **Health Check:** [http://localhost:8000/api/health](http://localhost:8000/api/health)
+- Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
+- ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+- Health: [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
-### Docker Setup
+### Docker
 
-Build and run the backend container standalone:
 ```bash
-docker build -t movers-backend .
-docker run -p 8000:8000 movers-backend
+docker build --target dev  -t optimove-backend:dev  .   # auto-reload
+docker build --target prod -t optimove-backend:prod .   # non-root, no reload
+docker run -p 8000:8000 optimove-backend:prod
 ```
 
-*(Or orchestrate frontend + backend together using `docker-compose up --build` from the repository root).*
+Or run the full stack from the repository root with `docker compose up --build`.
 
 ---
 
 ## CLI Reference
 
-[`cli.py`](cli.py) provides a direct terminal interface for running experiments without starting the web server.
+[`cli.py`](cli.py) solves instances without starting the web server. It uses the same validation as the API.
 
-### Arguments
+| Flag            | Type             | Description                                                              |
+|-----------------|------------------|--------------------------------------------------------------------------|
+| `--floors`      | `int` (required) | Number of floors ($0$ to $N-1$).                                         |
+| `--persons`     | `int` (required) | Number of movers.                                                        |
+| `--names`       | `str...`         | Mover names, one per mover (e.g. `--names Joe Bill Mia`).                |
+| `--items`       | `str...`         | Items as `name:floor` pairs (e.g. `--items chair:1 table:2`).            |
+| `--task`        | `1 \| 2`         | Force Task 1 or 2 (default: 2 if `--items` is given, else 1).            |
+| `--goal-floor`  | `int`            | Task 1: target floor for all movers (default: 0).                        |
+| `--fixed-t`     | `int`            | Solve for an exact horizon $T$ instead of searching for the optimum.     |
+| `--max-t`       | `int`            | Upper bound for iterative deepening (default: `MAX_TIME_STEPS`, 20).     |
+| `--cnf-out`     | `path`           | Write the DIMACS CNF (also for UNSAT results).                           |
+| `--mapping-out` | `path`           | Write the variable ID -> name mapping as JSON.                           |
 
-| Flag           | Type             | Description                                                           |
-|----------------|------------------|-----------------------------------------------------------------------|
-| `--floors`     | `int` (required) | Total number of building floors ($0$ to $N-1$).                       |
-| `--persons`    | `int` (required) | Number of movers.                                                     |
-| `--names`      | `string...`      | Optional names for movers (e.g. `--names Joe Bill Mia`).              |
-| `--items`      | `string...`      | Items as `name:floor` pairs (e.g. `--items chair:1 table:2`).         |
-| `--task`       | `1 \| 2`         | Force Task 1 or 2 (auto-detected as 2 if `--items` provided, else 1). |
-| `--goal-floor` | `int`            | Task 1: target floor for all movers (default: 0).                     |
-| `--fixed-t`    | `int`            | Solve for an exact horizon $T$ instead of iterative deepening.        |
-| `--max-t`      | `int`            | Max time horizon for iterative deepening (default: 20).               |
-| `--cnf-out`    | `string`         | Export the resulting CNF formula to a `.cnf` file in DIMACS format.   |
+**Exit codes:** `0` satisfiable, `1` unsatisfiable, `2` invalid input.
 
-### CLI Examples
+### Examples
 
-**1. Task 1: 3 movers reaching floor 2**
 ```bash
+# 1. Task 1: 3 movers reach floor 2
 python cli.py --floors 3 --persons 3 --names Joe Bill Mia --task 1 --goal-floor 2
-```
 
-**2. Task 2: Canonical Fig. 1 problem (3 movers, 3 items)**
-```bash
-python cli.py --floors 3 --persons 3 --names Joe Bill Mia \
-  --items flowerpot:2 chair:1 table:2
-```
+# 2. Task 2: Fig. 1 (3 movers, 3 items) -> T* = 4
+python cli.py --floors 3 --persons 3 --names Joe Bill Mia --items flowerpot:2 chair:1 table:2
 
-**3. Task 2: Full Fig. 1 benchmark (5 items, saving DIMACS formula)**
-```bash
+# 3. Task 2: full Fig. 1 (5 items) -> T* = 6, with exports
 python cli.py --floors 3 --persons 3 --names Joe Bill Mia \
   --items flowerpot:2 chair:1 table:2 piano:1 sofa:2 \
-  --cnf-out fig1_problem.cnf
-```
+  --cnf-out fig1.cnf --mapping-out fig1.json
 
-**4. Bounded solve at fixed $T=3$ (Expected UNSAT)**
-```bash
-python cli.py --floors 3 --persons 3 \
-  --items flowerpot:2 chair:1 table:2 \
-  --fixed-t 3
+# 4. Fixed T = 3 -> UNSAT; the CNF is still written
+python cli.py --floors 3 --persons 3 --items flowerpot:2 chair:1 table:2 --fixed-t 3 --cnf-out unsat.cnf
 ```
 
 ---
 
 ## API Reference
 
-All routes are mounted under `/api`.
+All routes are mounted under `/api`. Interactive documentation is at `/docs`.
 
 ### POST `/api/solve`
-Computes the optimal (minimal $T$) solution via iterative deepening ($T = 0, 1, 2, \dots$).
 
-**Request Body (Task 2 Example):**
+Finds the optimal (minimum $T$) plan via iterative deepening from the lower bound.
+
+**Request (Task 2):**
+
 ```json
 {
   "task": 2,
@@ -295,7 +300,8 @@ Computes the optimal (minimal $T$) solution via iterative deepening ($T = 0, 1, 
 }
 ```
 
-**Request Body (Task 1 Example):**
+**Request (Task 1):**
+
 ```json
 {
   "task": 1,
@@ -307,10 +313,23 @@ Computes the optimal (minimal $T$) solution via iterative deepening ($T = 0, 1, 
 }
 ```
 
-**Response (`200 OK`):**
+**Request fields and validation:**
+
+| Field          | Type                        | Rules                                                                                          |
+|----------------|-----------------------------|------------------------------------------------------------------------------------------------|
+| `task`         | `1` or `2`                  | Required.                                                                                      |
+| `num_floors`   | int                         | 1 to 50.                                                                                       |
+| `num_persons`  | int                         | 1 to 20.                                                                                       |
+| `person_names` | list of str, optional       | Exactly `num_persons` names, unique and non-empty.                                             |
+| `items`        | list, optional              | Task 2 only (ignored for Task 1). Unique names, `0 <= initial_floor < num_floors`, at most 50. |
+| `goal_floors`  | object, optional            | Task 1 only. Keys: person indices; values: floors in range. Default: floor 0.                  |
+| `max_steps`    | int, optional               | 0 to 100. Default: `MAX_TIME_STEPS`.                                                           |
+
+**Response `200 OK`** (plan shortened):
+
 ```json
 {
-  "solve_id": "8489cf5b-7b0b-4861-ae02-e25fcf95eb78",
+  "solve_id": "fa021e4f-1b2f-4de7-b68a-f3dd9278a8f2",
   "result": {
     "satisfiable": true,
     "num_time_steps": 4,
@@ -318,33 +337,53 @@ Computes the optimal (minimal $T$) solution via iterative deepening ($T = 0, 1, 
       {
         "t": 0,
         "actions": [
-          {"person": "Joe", "action": "ascends", "from_floor": 0, "to_floor": 1, "item": null},
+          {"person": "Joe",  "action": "idle",    "from_floor": 0, "to_floor": 0, "item": null},
           {"person": "Bill", "action": "ascends", "from_floor": 0, "to_floor": 1, "item": null},
-          {"person": "Mia", "action": "ascends", "from_floor": 0, "to_floor": 1, "item": null}
+          {"person": "Mia",  "action": "ascends", "from_floor": 0, "to_floor": 1, "item": null}
         ],
         "person_positions": {"Joe": 0, "Bill": 0, "Mia": 0},
         "item_positions": {"flowerpot": 2, "chair": 1, "table": 2}
       }
     ],
-    "cnf_dimacs": "c DIMACS CNF generated by Movers SAT Solver\np cnf 138 684\n...",
-    "variable_mapping": {
-      "1": "atFloor(Joe, 0, 0)",
-      "2": "atFloor(Joe, 1, 0)"
-    },
     "stats": {
-      "num_variables": 138,
-      "num_clauses": 684,
-      "solve_time_ms": 3.42
+      "num_variables": 150,
+      "num_clauses": 624,
+      "solve_time_ms": 0.4,
+      "horizons_tried": 1
     }
   }
 }
 ```
 
-### POST `/api/solve/fixed`
-Solves for an exact horizon $T$ (useful for verifying infeasibility or step-bounded planning).
+Each `plan[t]` holds the positions **at** time $t$ and the actions during $t \to t+1$ (empty at the last step).
+`action` is one of `idle`, `ascends`, `descends` or `carries`. The CNF and mapping are not included in the response
+to keep it small; download them with the endpoints below.
 
-**Request Body:**
-Includes all fields from `POST /api/solve`, plus `"time_steps": int`.
+If no plan exists up to `max_steps`, the result has `satisfiable: false`, `plan: null`, and `num_time_steps` is the
+last horizon tested.
+
+**Response `422 Unprocessable Entity`** (invalid input):
+
+```json
+{
+  "detail": [
+    {
+      "type": "value_error",
+      "loc": ["body"],
+      "msg": "Value error, item 'box' starts on floor 5, but floors range from 0 to 2"
+    }
+  ]
+}
+```
+
+**Other errors:** `504` solver timeout exceeded, `500` solver error.
+
+### POST `/api/solve/fixed`
+
+Solves for an exact horizon $T$. Useful to prove that no plan of a given length exists.
+
+Accepts all fields of `/api/solve` plus `"time_steps": int` (0 to 100):
+
 ```json
 {
   "task": 2,
@@ -359,67 +398,56 @@ Includes all fields from `POST /api/solve`, plus `"time_steps": int`.
 }
 ```
 
-**Response (UNSAT example):**
+**Response (UNSAT):**
+
 ```json
 {
-  "solve_id": "c6a2ef18-500b-4395-8869-70014b2d3bf3",
+  "solve_id": "616c72de-edb9-409d-9f02-87544dd95435",
   "result": {
     "satisfiable": false,
     "num_time_steps": 3,
     "plan": null,
-    "cnf_dimacs": null,
-    "variable_mapping": null,
-    "stats": {
-      "num_variables": 105,
-      "num_clauses": 508,
-      "solve_time_ms": 1.85
-    }
+    "stats": {"num_variables": 117, "num_clauses": 480, "solve_time_ms": 0.28, "horizons_tried": 1}
   }
 }
 ```
 
 ### GET `/api/cnf/{solve_id}`
-Retrieves the raw DIMACS CNF representation of the problem for a previous satisfiable solve.
-- **Response:** `{"cnf": "p cnf ...\n..."}`
-- **Error:** `404 Not Found` if `solve_id` is invalid or the instance was UNSAT.
+
+Returns the DIMACS CNF of a previous solve, **SAT or UNSAT**. Variable names are listed as `c` comment lines.
+
+- **Response:** `{"cnf": "c 1 = atFloor(Joe, 0, 0)\n...\np cnf 150 624\n..."}`
+- **Error:** `404` if the `solve_id` is unknown or was evicted from the cache.
 
 ### GET `/api/mapping/{solve_id}`
-Retrieves the mapping dictionary `{variable_id: symbolic_name}` for a previous satisfiable solve.
+
+Returns the mapping `{variable_id: symbolic_name}` of a previous solve.
+
 - **Response:** `{"mapping": {"1": "atFloor(Joe, 0, 0)", ...}}`
+- **Error:** `404` as above.
 
 ### GET `/api/health`
-Basic service health check:
+
 ```json
-{
-  "status": "ok",
-  "solver": "glucose3"
-}
+{"status": "ok", "solver": "glucose3", "version": "1.1.0"}
 ```
+
+`solver` is the canonical name of the configured `SOLVER_NAME`.
 
 ---
 
 ## Testing
 
-The backend includes a comprehensive `pytest` test suite covering SAT encoding logic, variable generation, API routing, and boundary conditions.
-
-### Running Tests
-
-Activate the virtual environment and execute:
 ```bash
 cd backend
-pytest
+pytest        # or: pytest -v
 ```
 
-To run with verbose output:
-```bash
-pytest -v
-```
-
-### Test Suite Structure
-
-| Test File                                            | Covered Functionality                                                                                                                                                                               |
-|------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [`tests/test_task1.py`](tests/test_task1.py)         | Verification that 3 movers reach floor 2 in exactly 2 steps, verification of UNSAT at $T=1$, edge cases (trivial $T=0$), and plan action verification (`ascends`).                                  |
-| [`tests/test_task2.py`](tests/test_task2.py)         | Full logistics solving: 3-item setup optimal at $T=4$, UNSAT at $T=3$, full 5-item Fig. 1 benchmark optimal at $T=6$, single-mover single-item edge cases, and final state ground-floor validation. |
-| [`tests/test_variables.py`](tests/test_variables.py) | `IDPool` variable consistency, uniqueness across distinct propositional variable families, and human-readable string mapping generation.                                                            |
-| [`tests/test_api.py`](tests/test_api.py)             | End-to-end FastAPI integration testing via `TestClient`: health endpoint, `/solve` for Task 1 and Task 2, `/cnf/{solve_id}`, `/mapping/{solve_id}`, and 404 handling.                               |
+| Test file                                                  | What it covers                                                                                                |
+|------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| [`tests/test_task1.py`](tests/test_task1.py)               | 3 movers reach floor 2 in 2 steps, UNSAT at $T=1$, trivial $T=0$, decoded `ascends` actions.                  |
+| [`tests/test_task2.py`](tests/test_task2.py)               | 3-item benchmark ($T^*=4$), UNSAT at $T=3$, full Fig. 1 ($T^*=6$), single mover/item, final state on floor 0. |
+| [`tests/test_variables.py`](tests/test_variables.py)       | `IDPool` consistency, distinct variable families, readable mapping names.                                     |
+| [`tests/test_api.py`](tests/test_api.py)                   | `/health`, `/solve` for both tasks, `/cnf`, `/mapping`, 404 handling.                                         |
+| [`tests/test_validation.py`](tests/test_validation.py)     | Invalid task, counts, floors, duplicate names, goal floors, horizons: all return 422.                         |
+| [`tests/test_improvements.py`](tests/test_improvements.py) | Lower bound validity, UNSAT CNF export, stats, LRU cache, timeout (504), CLI exports and exit codes.          |

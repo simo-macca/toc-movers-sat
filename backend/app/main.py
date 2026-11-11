@@ -8,16 +8,20 @@ Creates the ASGI application, attaches CORS middleware (configured via
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import __version__
 from app.config import settings
 from app.api.routes import router
 
-app = FastAPI(title="Movers SAT Solver", version="1.0.0")
+app = FastAPI(
+    title="OptiMove: Movers SAT Solver",
+    description="Optimal planning for the Movers problem via SAT encoding (PySAT).",
+    version=__version__,
+)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 

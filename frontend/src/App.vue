@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { solveProblem, solveProblemFixed } from './api/client'
+import { buildPayload } from './utils/payload'
 import ProblemSetup from './components/ProblemSetup.vue'
 import ResultsPanel from './components/ResultsPanel.vue'
 
@@ -33,30 +34,10 @@ const submitSolve = async () => {
   solveResponse.value = null
 
   try {
-    const goalFloorsDict = {}
+    const payload = buildPayload(form.value)
 
-    form.value.goal_floors.forEach((targetFloor, personIndex) => {
-      goalFloorsDict[personIndex] = targetFloor
-    })
-
-    const payload = {
-      task: form.value.task,
-      num_floors: form.value.num_floors,
-      num_persons: form.value.num_persons,
-      person_names: form.value.person_names,
-      // task 2 uses items, task 1 ignores them
-      items: form.value.task === 2 ? form.value.items : [],
-      // task 1 uses goal floors, task 2 ignores them
-      goal_floors: form.value.task === 1 ? goalFloorsDict : null,
-    }
-
-    if (form.value.solve_mode === 'optimal') {
-      payload.max_steps = form.value.max_steps
-      solveResponse.value = await solveProblem(payload)
-    } else {
-      payload.time_steps = form.value.time_steps
-      solveResponse.value = await solveProblemFixed(payload)
-    }
+    solveResponse.value =
+      form.value.solve_mode === 'optimal' ? await solveProblem(payload) : await solveProblemFixed(payload)
   } catch (err) {
     error.value = err.message || 'Failed to connect to backend.'
   } finally {
@@ -75,8 +56,10 @@ const submitSolve = async () => {
         class="mb-8 flex items-end justify-between border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-slate-800"
       >
         <div>
-          <h1 class="text-4xl font-extrabold tracking-tight text-slate-800 dark:text-white">Movers SAT Solver</h1>
-          <p class="mt-2 text-lg text-slate-500 dark:text-slate-400">Optimal logistics planning using Glucose3</p>
+          <h1 class="text-4xl font-extrabold tracking-tight text-slate-800 dark:text-white">OptiMove</h1>
+          <p class="mt-2 text-lg text-slate-500 dark:text-slate-400">
+            Movers SAT Solver: optimal logistics planning with Glucose 3
+          </p>
         </div>
       </header>
 

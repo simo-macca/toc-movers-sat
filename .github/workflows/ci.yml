@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -v
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run check:lint
+      - run: npm run check:format
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production images
+        run: docker compose -f docker-compose.prod.yml build
+      - name: Start stack and smoke test through nginx
+        run: |
+          docker compose -f docker-compose.prod.yml up -d --wait
+          curl --fail --retry 5 --retry-connrefused http://localhost:3000/api/health
+          curl --fail http://localhost:3000/ | grep -q '<div id="app">'
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs
+      - name: Shut down
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down
+
+  report:
+    name: Report PDF
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: xu-cheng/latex-action@v3
+        with:
+          root_file: main.tex
+          working_directory: report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: report-pdf
+          path: report/main.pdf
+
+  release:
+    name: Attach report to release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [backend, frontend, docker, report]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: report-pdf
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: main.pdf
+          generate_release_notes: true

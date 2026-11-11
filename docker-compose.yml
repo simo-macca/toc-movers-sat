@@ -1,15 +1,28 @@
+# Development stack: hot reload for backend (uvicorn --reload) and frontend (Vite HMR).
+# Usage: docker compose up --build
+# For a production-style build see docker-compose.prod.yml.
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      target: dev
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
     environment:
       - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: dev
     ports:
       - "3000:3000"
     volumes:
@@ -18,4 +31,5 @@ services:
     environment:
       - VITE_API_BASE_URL=http://localhost:8000/api
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy

@@ -4,7 +4,7 @@ Defines Pydantic models for problem specification (inputs), solver
 output (results), and the human-readable solution plan representation.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class ItemPlacement(BaseModel):
@@ -15,8 +15,8 @@ class ItemPlacement(BaseModel):
         initial_floor: Zero-indexed floor where the item starts.
     """
 
-    name: str
-    initial_floor: int
+    name: str = Field(min_length=1, max_length=50)
+    initial_floor: int = Field(ge=0)
 
 
 class ProblemConfig(BaseModel):
@@ -31,10 +31,41 @@ class ProblemConfig(BaseModel):
             only, no items).
     """
 
-    num_floors: int
-    num_persons: int
+    num_floors: int = Field(ge=1, le=50)
+    num_persons: int = Field(ge=1, le=20)
     person_names: list[str] | None = None
-    items: list[ItemPlacement] = []
+    items: list[ItemPlacement] = Field(default_factory=list, max_length=50)
+
+    @model_validator(mode="after")
+    def _check_consistency(self) -> "ProblemConfig":
+        """Reject instances that would otherwise silently encode nonsense.
+
+        Out-of-range floors create unconstrained variables and duplicate
+        item names collapse onto the same variables, so both are refused
+        here instead of producing a misleading SAT/UNSAT answer.
+        """
+        if self.person_names is not None:
+            if len(self.person_names) != self.num_persons:
+                raise ValueError(
+                    f"person_names has {len(self.person_names)} entries "
+                    f"but num_persons is {self.num_persons}"
+                )
+            if any(not n.strip() for n in self.person_names):
+                raise ValueError("person_names must not contain empty names")
+            if len(set(self.person_names)) != len(self.person_names):
+                raise ValueError("person_names must be unique")
+
+        names = [it.name for it in self.items]
+        if len(set(names)) != len(names):
+            raise ValueError("item names must be unique")
+
+        for it in self.items:
+            if it.initial_floor >= self.num_floors:
+                raise ValueError(
+                    f"item '{it.name}' starts on floor {it.initial_floor}, "
+                    f"but floors range from 0 to {self.num_floors - 1}"
+                )
+        return self
 
 
 class StepAction(BaseModel):
@@ -79,25 +110,32 @@ class SolverStats(BaseModel):
     """Performance metrics from a single solver run.
 
     Attributes:
-        num_variables: Number of propositional variables in the CNF formula.
-        num_clauses: Number of clauses in the CNF formula.
-        solve_time_ms: Wall-clock solver runtime in milliseconds.
+        num_variables: Number of propositional variables in the (last) CNF formula.
+        num_clauses: Number of clauses in the (last) CNF formula.
+        solve_time_ms: Wall-clock solver runtime in milliseconds. For
+            iterative deepening this is the total over all horizons tried.
+        horizons_tried: How many time horizons T were encoded and solved.
     """
 
     num_variables: int
     num_clauses: int
     solve_time_ms: float
+    horizons_tried: int = 1
 
 
 class SolverResult(BaseModel):
     """Complete output from the SAT solver.
 
-    When the problem is unsatisfiable, only ``satisfiable`` is populated;
-    all other fields remain None.
+    ``plan`` is only populated when the formula is satisfiable. The CNF and
+    the variable mapping are produced for both SAT and UNSAT results (an
+    UNSAT formula is the infeasibility proof you may want to re-check in
+    another solver). Both are excluded from JSON serialization to keep API
+    responses small; fetch them via ``/api/cnf/{id}`` and ``/api/mapping/{id}``.
 
     Attributes:
         satisfiable: Whether the SAT solver found a valid assignment.
-        num_time_steps: Time horizon T of the solution, if satisfiable.
+        num_time_steps: Time horizon T of the solution, or the last
+            horizon tested when unsatisfiable.
         plan: Decoded human-readable solution as a list of TimeSteps.
         cnf_dimacs: The CNF formula in DIMACS format string.
         variable_mapping: Mapping from SAT variable ID to symbolic name.
@@ -107,6 +145,6 @@ class SolverResult(BaseModel):
     satisfiable: bool
     num_time_steps: int | None = None
     plan: list[TimeStep] | None = None
-    cnf_dimacs: str | None = None
-    variable_mapping: dict[int, str] | None = None
+    cnf_dimacs: str | None = Field(default=None, exclude=True)
+    variable_mapping: dict[int, str] | None = Field(default=None, exclude=True)
     stats: SolverStats | None = None

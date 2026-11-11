@@ -120,3 +120,29 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+### Project
+# Environment files (keep the committed examples)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Node / Vite
+node_modules/
+dist/
+.eslintcache
+
+# Solver exports written by the CLI (python cli.py --cnf-out / --mapping-out)
+*.cnf
+
+# LaTeX build output outside report/ (report/.gitignore covers the rest)
+*.aux
+*.log
+*.synctex.gz

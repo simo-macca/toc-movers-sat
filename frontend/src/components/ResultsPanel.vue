@@ -121,7 +121,7 @@ const downloadData = async (type) => {
     <!-- error container from the api call -->
     <div
       v-if="error"
-      class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 transition-colors duration-300 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
+      class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium whitespace-pre-line text-red-700 transition-colors duration-300 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
     >
       {{ error }}
     </div>
@@ -181,11 +181,17 @@ const downloadData = async (type) => {
                 >{{ solveResponse.result.stats.solve_time_ms.toFixed(1) }}ms</span
               >
             </p>
-            <p v-if="solveResponse.result.satisfiable" class="text-slate-500 dark:text-slate-400">
-              Steps:
+            <p class="text-slate-500 dark:text-slate-400">
+              {{ solveResponse.result.satisfiable ? 'Steps:' : 'Tested up to T =' }}
               <span class="font-bold text-slate-800 dark:text-slate-200">{{
                 solveResponse.result.num_time_steps
               }}</span>
+            </p>
+            <p class="text-slate-500 dark:text-slate-400">
+              Vars / clauses:
+              <span class="font-bold text-slate-800 dark:text-slate-200"
+                >{{ solveResponse.result.stats.num_variables }} / {{ solveResponse.result.stats.num_clauses }}</span
+              >
             </p>
           </div>
           <!-- cnf download button -->
@@ -285,6 +291,9 @@ const downloadData = async (type) => {
         <p class="mt-2 text-rose-600/80 dark:text-rose-300/80">
           The constraints given are unsatisfiable. Try adjusting the parameters, reducing the goal complexity, or
           increasing the max/time steps.
+        </p>
+        <p class="mt-2 text-sm text-rose-600/70 dark:text-rose-300/70">
+          You can still download the DIMACS CNF to verify the infeasibility in another SAT solver.
         </p>
       </div>
     </template>

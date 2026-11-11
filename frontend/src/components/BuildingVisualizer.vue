@@ -12,16 +12,16 @@ const getMoversOnFloor = (floorNum) => {
   if (!props.currentState) return []
 
   return Object.entries(props.currentState.person_positions)
-    .filter(([_, floor]) => floor === floorNum)
-    .map(([person, _]) => person)
+    .filter(([, floor]) => floor === floorNum)
+    .map(([person]) => person)
 }
 
 const getItemsOnFloor = (floorNum) => {
   if (!props.currentState || props.task === 1) return []
 
   return Object.entries(props.currentState.item_positions)
-    .filter(([_, floor]) => floor === floorNum)
-    .map(([item, _]) => item)
+    .filter(([, floor]) => floor === floorNum)
+    .map(([item]) => item)
 }
 </script>
 

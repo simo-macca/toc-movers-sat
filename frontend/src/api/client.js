@@ -1,83 +1,62 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
-const DEFAULT_TIMEOUT = 1200000 // 2 minutes
 
-export async function solveProblem(payload, timeout = DEFAULT_TIMEOUT) {
+// 2 minutes. The backend aborts the solver after 118 s, so its 504 arrives first.
+export const SOLVE_TIMEOUT_MS = 120000
+export const DOWNLOAD_TIMEOUT_MS = 10000
+
+/**
+ * Turn a FastAPI error body into a readable message.
+ * Validation errors (422) arrive as `detail: [{ loc, msg }, ...]`.
+ */
+export function formatErrorDetail(detail, status) {
+  if (Array.isArray(detail)) {
+    return detail
+      .map((e) => {
+        const field = (e.loc || []).filter((p) => p !== 'body').join('.')
+        const msg = String(e.msg || '').replace(/^Value error, /, '')
+        return field ? `${field}: ${msg}` : msg
+      })
+      .join('\n')
+  }
+  if (typeof detail === 'string' && detail) return detail
+  return `API Error: ${status}`
+}
+
+/**
+ * Shared fetch wrapper: JSON body, timeout, and error normalisation.
+ */
+export async function request(path, { method = 'GET', body, timeout = DOWNLOAD_TIMEOUT_MS } = {}) {
   try {
-    const response = await fetch(`${API_BASE_URL}/solve`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(timeout),
-    })
+    const options = { method, signal: AbortSignal.timeout(timeout) }
+    if (body !== undefined) {
+      options.headers = { 'Content-Type': 'application/json' }
+      options.body = JSON.stringify(body)
+    }
+    const response = await fetch(`${API_BASE_URL}${path}`, options)
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.detail || `API Error: ${response.status}`)
+      throw new Error(formatErrorDetail(errorData.detail, response.status))
     }
 
     return await response.json()
   } catch (error) {
     if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-      throw new Error(`The solver timed out after ${timeout / 1000} seconds. Try reducing the problem complexity.`)
+      throw new Error(`Request timed out after ${timeout / 1000} seconds. Try reducing the problem complexity.`, {
+        cause: error,
+      })
     }
-
-    console.error('API call failed:', error)
+    console.error(`API call ${method} ${path} failed:`, error)
     throw error
   }
 }
 
-export async function solveProblemFixed(payload, timeout = DEFAULT_TIMEOUT) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/solve/fixed`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(timeout),
-    })
+export const solveProblem = (payload, timeout = SOLVE_TIMEOUT_MS) =>
+  request('/solve', { method: 'POST', body: payload, timeout })
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.detail || `API Error: ${response.status}`)
-    }
+export const solveProblemFixed = (payload, timeout = SOLVE_TIMEOUT_MS) =>
+  request('/solve/fixed', { method: 'POST', body: payload, timeout })
 
-    return await response.json()
-  } catch (error) {
-    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-      throw new Error(`The solver timed out after ${timeout / 1000} seconds. Try reducing the problem complexity.`)
-    }
+export const fetchCNF = (solveId, timeout = DOWNLOAD_TIMEOUT_MS) => request(`/cnf/${solveId}`, { timeout })
 
-    console.error('API call failed:', error)
-    throw error
-  }
-}
-
-export async function fetchCNF(solveId, timeout = 10000) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/cnf/${solveId}`, {
-      signal: AbortSignal.timeout(timeout),
-    })
-
-    if (!response.ok) throw new Error('Failed to fetch CNF')
-    return await response.json()
-  } catch (error) {
-    if (error.name === 'TimeoutError' || error.name === 'AbortError') throw new Error('Download timed out')
-    console.error('Download CNF failed:', error)
-    throw error
-  }
-}
-
-export async function fetchMapping(solveId, timeout = 10000) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/mapping/${solveId}`, {
-      signal: AbortSignal.timeout(timeout),
-    })
-    if (!response.ok) throw new Error('Failed to fetch Mapping')
-
-    return await response.json()
-  } catch (error) {
-    if (error.name === 'TimeoutError' || error.name === 'AbortError') throw new Error('Download timed out')
-
-    console.error('Download Mapping JSON failed:', error)
-    throw error
-  }
-}
+export const fetchMapping = (solveId, timeout = DOWNLOAD_TIMEOUT_MS) => request(`/mapping/${solveId}`, { timeout })

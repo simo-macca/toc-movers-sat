@@ -36,6 +36,12 @@ def encode_task1(
     Returns:
         (cnf, pool) where cnf contains all clauses and pool maps vars to ints.
     """
+    for p, gf in goal_floors.items():
+        if not 0 <= p < num_persons:
+            raise ValueError(f"goal_floors refers to unknown person {p}")
+        if not 0 <= gf < num_floors:
+            raise ValueError(f"goal floor {gf} for person {p} is out of range")
+
     if pool is None:
         pool = IDPool()
     cnf = CNF()

@@ -1,190 +1,167 @@
 """FastAPI REST endpoints for the Movers SAT Solver.
 
-All routes are mounted under the ``/api`` prefix by
-:mod:`app.main`.  Solve results are cached in memory so that
-CNF and variable-mapping data can be retrieved by ``solve_id``
-after the initial solve request.
+All routes are mounted under the ``/api`` prefix by :mod:`app.main`.
+Each solve runs in an isolated child process with a hard timeout, and
+recent results are kept in a bounded in-memory cache so that the CNF and
+variable mapping can be downloaded later by ``solve_id``.
 """
 
-import uuid
 import multiprocessing
+import queue
+import threading
+import time
+import uuid
+from collections import OrderedDict
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
-from app.models.problem import ProblemConfig, SolverResult, ItemPlacement
+from app import __version__
+from app.config import settings
+from app.models.api import FixedSolveRequest, SolveRequest, SolveResponse
+from app.models.problem import SolverResult
+from app.solver import worker
 
 router = APIRouter()
 
-# In-memory cache keyed by solve_id (UUID). Does not persist across restarts.
-_result_cache: dict[str, SolverResult] = {}
-
-# Hard timeout in seconds to prevent the PySAT C-extension from causing cascading deadlocks.
-# This should be set slightly lower than your frontend's HTTP timeout limit.
-SOLVER_TIMEOUT_SECONDS = 118.0
+# "spawn" starts a fresh interpreter for each solve. Forking a multi-threaded
+# server process (FastAPI's thread pool) can deadlock, so fork is avoided.
+_mp = multiprocessing.get_context("spawn")
 
 
-class SolveRequest(BaseModel):
-    """Request body for finding an optimal solution.
+class _ResultCache:
+    """Thread-safe LRU cache of solve results, keyed by ``solve_id``."""
 
-    Attributes:
-        task: Task variant (1 = movement only, 2 = movement + items).
-        num_floors: Number of floors in the building.
-        num_persons: Number of movers.
-        person_names: Optional custom names for the movers.
-        items: Items to transport (Task 2 only).
-        goal_floors: Target floor per person index (Task 1 only).
-            Defaults to floor 0 for all persons when None.
-        max_steps: Upper bound on T for iterative deepening.
-    """
+    def __init__(self, max_size: int) -> None:
+        self._max_size = max(1, max_size)
+        self._data: OrderedDict[str, SolverResult] = OrderedDict()
+        self._lock = threading.Lock()
 
-    task: int
-    num_floors: int
-    num_persons: int
-    person_names: list[str] | None = None
-    items: list[ItemPlacement] = []
-    goal_floors: dict[int, int] | None = None
-    max_steps: int | None = None
+    def put(self, key: str, value: SolverResult) -> None:
+        with self._lock:
+            self._data[key] = value
+            self._data.move_to_end(key)
+            while len(self._data) > self._max_size:
+                self._data.popitem(last=False)
 
+    def get(self, key: str) -> SolverResult | None:
+        with self._lock:
+            value = self._data.get(key)
+            if value is not None:
+                self._data.move_to_end(key)
+            return value
 
-class FixedSolveRequest(SolveRequest):
-    """Request body for solving at a specific time horizon.
-
-    Attributes:
-        time_steps: Exact time horizon T to solve for.
-    """
-
-    time_steps: int
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._data)
 
 
-class SolveResponse(BaseModel):
-    """Response returned by both solve endpoints.
-
-    Attributes:
-        solve_id: UUID for retrieving CNF or variable mapping later.
-        result: Full solver output including the decoded plan.
-    """
-
-    solve_id: str
-    result: SolverResult
+_result_cache = _ResultCache(settings.result_cache_size)
 
 
-def _optimal_worker(config: ProblemConfig, task: int, max_steps: int | None, goal_floors: dict[int, int] | None, return_dict: dict):
-    """Isolated worker function to run iterative deepening optimal solver."""
-    from app.solver.runner import solve_optimal
+def _run_solver_process(kind: str, args: tuple) -> SolveResponse:
+    """Run the solver in a child process, enforce the timeout, cache the result."""
+    result_queue = _mp.Queue()
+    process = _mp.Process(target=worker.run, args=(kind, args, result_queue), daemon=True)
+    process.start()
+
+    deadline = time.monotonic() + settings.solver_timeout_seconds
     try:
-        result = solve_optimal(config, task, max_steps, goal_floors)
-        return_dict['result'] = result
-    except Exception as e:
-        return_dict['error'] = str(e)
+        while True:
+            try:
+                status, payload = result_queue.get(timeout=0.2)
+                break
+            except queue.Empty:
+                if not process.is_alive():
+                    # The child may have exited right after putting its result.
+                    try:
+                        status, payload = result_queue.get(timeout=0.5)
+                        break
+                    except queue.Empty:
+                        raise HTTPException(
+                            status_code=500, detail="Solver process exited unexpectedly."
+                        ) from None
+                if time.monotonic() > deadline:
+                    raise HTTPException(
+                        status_code=504,
+                        detail=(
+                            f"Solver timeout of {settings.solver_timeout_seconds:.0f} s "
+                            "exceeded. Process terminated."
+                        ),
+                    )
+    finally:
+        if process.is_alive():
+            process.terminate()
+        process.join(timeout=5)
+        if process.is_alive():
+            process.kill()
+            process.join()
+        result_queue.close()
 
+    if status == "error":
+        raise HTTPException(status_code=500, detail=f"Solver error: {payload}")
 
-def _fixed_worker(config: ProblemConfig, task: int, time_steps: int, goal_floors: dict[int, int] | None, return_dict: dict):
-    """Isolated worker function to run the fixed time horizon solver."""
-    from app.solver.runner import solve_fixed
-    try:
-        result = solve_fixed(config, task, time_steps, goal_floors)
-        return_dict['result'] = result
-    except Exception as e:
-        return_dict['error'] = str(e)
-
-
-def _run_solver_process(target_worker, worker_args: tuple) -> SolveResponse:
-    """
-    Auxiliary function to handle the multiprocessing setup, execution,
-    timeout enforcement, and response generation for the solver.
-    """
-    manager = multiprocessing.Manager()
-    return_dict = manager.dict()
-
-    # Append the return_dict to the arguments passed to the worker
-    full_args = (*worker_args, return_dict)
-
-    p = multiprocessing.Process(target=target_worker, args=full_args)
-    p.start()
-    p.join(timeout=SOLVER_TIMEOUT_SECONDS)
-
-    if p.is_alive():
-        # The solver took too long. Explicitly terminate the zombie process.
-        p.terminate()
-        p.join()
-        raise HTTPException(status_code=504, detail="Solver timeout exceeded. Process terminated.")
-
-    if 'error' in return_dict:
-        raise HTTPException(status_code=500, detail=f"Solver error: {return_dict['error']}")
-
-    if 'result' not in return_dict:
-        raise HTTPException(status_code=500, detail="Solver process failed unexpectedly.")
-
-    result = return_dict['result']
     solve_id = str(uuid.uuid4())
-    _result_cache[solve_id] = result
+    _result_cache.put(solve_id, payload)
+    return SolveResponse(solve_id=solve_id, result=payload)
 
-    return SolveResponse(solve_id=solve_id, result=result)
 
-
+# These handlers are deliberately plain ``def`` (not ``async def``): they block
+# while waiting for the solver process, and FastAPI runs sync handlers in a
+# thread pool, so other requests (e.g. /health) stay responsive.
 @router.post("/solve", response_model=SolveResponse)
-async def solve(req: SolveRequest):
+def solve(req: SolveRequest):
     """Find the optimal (minimum-T) solution via iterative deepening."""
-    config = ProblemConfig(
-        num_floors=req.num_floors,
-        num_persons=req.num_persons,
-        person_names=req.person_names,
-        items=req.items,
-    )
     return _run_solver_process(
-        target_worker=_optimal_worker,
-        worker_args=(config, req.task, req.max_steps, req.goal_floors)
+        "optimal", (req.to_config(), req.task, req.max_steps, req.goal_floors)
     )
 
 
 @router.post("/solve/fixed", response_model=SolveResponse)
-async def solve_at_fixed_t(req: FixedSolveRequest):
-    """Solve at an exact time horizon T."""
-    config = ProblemConfig(
-        num_floors=req.num_floors,
-        num_persons=req.num_persons,
-        person_names=req.person_names,
-        items=req.items,
-    )
+def solve_at_fixed_t(req: FixedSolveRequest):
+    """Solve at an exact time horizon T (SAT gives a plan, UNSAT proves infeasibility)."""
     return _run_solver_process(
-        target_worker=_fixed_worker,
-        worker_args=(config, req.task, req.time_steps, req.goal_floors)
+        "fixed", (req.to_config(), req.task, req.time_steps, req.goal_floors)
     )
+
+
+def _cached(solve_id: str) -> SolverResult:
+    result = _result_cache.get(solve_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Solve ID not found (unknown or expired)")
+    return result
 
 
 @router.get("/cnf/{solve_id}")
 def get_cnf(solve_id: str):
-    """Retrieve the DIMACS CNF string for a previous solve.
+    """Retrieve the DIMACS CNF of a previous solve (SAT or UNSAT).
 
     Raises:
-        HTTPException: 404 if solve_id is unknown or the result was UNSAT.
+        HTTPException: 404 if ``solve_id`` is unknown or has been evicted.
     """
-    result = _result_cache.get(solve_id)
-    if not result:
-        raise HTTPException(status_code=404, detail="Solve ID not found")
+    result = _cached(solve_id)
     if not result.cnf_dimacs:
-        raise HTTPException(status_code=404, detail="No CNF available (UNSAT)")
+        raise HTTPException(status_code=404, detail="No CNF available for this solve")
     return {"cnf": result.cnf_dimacs}
 
 
 @router.get("/mapping/{solve_id}")
 def get_mapping(solve_id: str):
-    """Retrieve the variable ID to symbolic name mapping for a previous solve.
+    """Retrieve the variable ID -> symbolic name mapping of a previous solve.
 
     Raises:
-        HTTPException: 404 if solve_id is unknown or the result was UNSAT.
+        HTTPException: 404 if ``solve_id`` is unknown or has been evicted.
     """
-    result = _result_cache.get(solve_id)
-    if not result:
-        raise HTTPException(status_code=404, detail="Solve ID not found")
+    result = _cached(solve_id)
     if not result.variable_mapping:
-        raise HTTPException(status_code=404, detail="No mapping available (UNSAT)")
+        raise HTTPException(status_code=404, detail="No mapping available for this solve")
     return {"mapping": result.variable_mapping}
 
 
 @router.get("/health")
 def health():
     """Return a simple health-check response."""
-    return {"status": "ok", "solver": "glucose3"}
-
+    return {
+        "status": "ok",
+        "solver": settings.solver_canonical_name,
+        "version": __version__,
+    }
